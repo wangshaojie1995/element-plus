@@ -13,16 +13,16 @@
     <el-table-column property="address" label="Address" show-overflow-tooltip />
   </el-table>
   <div style="margin-top: 20px">
-    <el-button @click="toggleSelection([tableData[1], tableData[2]])"
-      >Toggle selection status of second and third rows</el-button
-    >
+    <el-button @click="toggleSelection([tableData[1], tableData[2]])">
+      Toggle selection status of second and third rows
+    </el-button>
     <el-button @click="toggleSelection()">Clear selection</el-button>
   </div>
 </template>
 
 <script lang="ts" setup>
 import { ref } from 'vue'
-import type { ElTable } from 'element-plus'
+import { ElTable } from 'element-plus'
 
 interface User {
   date: string

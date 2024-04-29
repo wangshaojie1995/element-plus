@@ -1,188 +1,67 @@
 <template>
-  <transition name="el-scrollbar-fade">
-    <div
-      v-show="always || visible"
-      ref="instance"
-      :class="['el-scrollbar__bar', 'is-' + bar.key]"
-      @mousedown="clickTrackHandler"
-    >
-      <div
-        ref="thumb"
-        class="el-scrollbar__thumb"
-        :style="thumbStyle"
-        @mousedown="clickThumbHandler"
-      ></div>
-    </div>
-  </transition>
+  <thumb :move="moveX" :ratio="ratioX" :size="sizeWidth" :always="always" />
+  <thumb
+    :move="moveY"
+    :ratio="ratioY"
+    :size="sizeHeight"
+    vertical
+    :always="always"
+  />
 </template>
-
-<script lang="ts">
-import {
-  computed,
-  defineComponent,
-  inject,
-  onBeforeUnmount,
-  ref,
-  toRef,
-} from 'vue'
-import { useEventListener } from '@vueuse/core'
-import { scrollbarContextKey } from '@element-plus/tokens'
-import { throwError } from '@element-plus/utils/error'
-import { BAR_MAP, renderThumbStyle } from './util'
-
+<script lang="ts" setup>
+import { inject, ref } from 'vue'
+import { GAP } from './util'
+import Thumb from './thumb.vue'
 import { barProps } from './bar'
+import { scrollbarContextKey } from './constants'
 
-const COMPONENT_NAME = 'Bar'
-export default defineComponent({
-  name: COMPONENT_NAME,
-  props: barProps,
+const props = defineProps(barProps)
 
-  setup(props) {
-    const scrollbar = inject(scrollbarContextKey)
-    if (!scrollbar)
-      throwError(COMPONENT_NAME, 'can not inject scrollbar context')
+const scrollbar = inject(scrollbarContextKey)
 
-    const instance = ref<HTMLDivElement>()
-    const thumb = ref<HTMLDivElement>()
+const moveX = ref(0)
+const moveY = ref(0)
+const sizeWidth = ref('')
+const sizeHeight = ref('')
+const ratioY = ref(1)
+const ratioX = ref(1)
 
-    const barStore = ref({})
-    const visible = ref(false)
+const handleScroll = (wrap: HTMLDivElement) => {
+  if (wrap) {
+    const offsetHeight = wrap.offsetHeight - GAP
+    const offsetWidth = wrap.offsetWidth - GAP
 
-    let cursorDown = false
-    let cursorLeave = false
-    let onselectstartStore:
-      | ((this: GlobalEventHandlers, ev: Event) => any)
-      | null = null
+    moveY.value = ((wrap.scrollTop * 100) / offsetHeight) * ratioY.value
+    moveX.value = ((wrap.scrollLeft * 100) / offsetWidth) * ratioX.value
+  }
+}
 
-    const bar = computed(
-      () => BAR_MAP[props.vertical ? 'vertical' : 'horizontal']
-    )
+const update = () => {
+  const wrap = scrollbar?.wrapElement
+  if (!wrap) return
+  const offsetHeight = wrap.offsetHeight - GAP
+  const offsetWidth = wrap.offsetWidth - GAP
 
-    const thumbStyle = computed(() =>
-      renderThumbStyle({
-        size: props.size,
-        move: props.move,
-        bar: bar.value,
-      })
-    )
+  const originalHeight = offsetHeight ** 2 / wrap.scrollHeight
+  const originalWidth = offsetWidth ** 2 / wrap.scrollWidth
+  const height = Math.max(originalHeight, props.minSize)
+  const width = Math.max(originalWidth, props.minSize)
 
-    const offsetRatio = computed(
-      () =>
-        // offsetRatioX = original width of thumb / current width of thumb / ratioX
-        // offsetRatioY = original height of thumb / current height of thumb / ratioY
-        // instance height = wrap height - GAP
-        instance.value![bar.value.offset] ** 2 /
-        scrollbar.wrapElement![bar.value.scrollSize] /
-        props.ratio /
-        thumb.value![bar.value.offset]
-    )
+  ratioY.value =
+    originalHeight /
+    (offsetHeight - originalHeight) /
+    (height / (offsetHeight - height))
+  ratioX.value =
+    originalWidth /
+    (offsetWidth - originalWidth) /
+    (width / (offsetWidth - width))
 
-    const clickThumbHandler = (e: MouseEvent) => {
-      // prevent click event of middle and right button
-      e.stopPropagation()
-      if (e.ctrlKey || [1, 2].includes(e.button)) return
+  sizeHeight.value = height + GAP < offsetHeight ? `${height}px` : ''
+  sizeWidth.value = width + GAP < offsetWidth ? `${width}px` : ''
+}
 
-      window.getSelection()?.removeAllRanges()
-      startDrag(e)
-
-      const el = e.currentTarget as HTMLDivElement
-      if (!el) return
-      barStore.value[bar.value.axis] =
-        el[bar.value.offset] -
-        (e[bar.value.client] - el.getBoundingClientRect()[bar.value.direction])
-    }
-
-    const clickTrackHandler = (e: MouseEvent) => {
-      if (!thumb.value || !instance.value || !scrollbar.wrapElement) return
-
-      const offset = Math.abs(
-        (e.target as HTMLElement).getBoundingClientRect()[bar.value.direction] -
-          e[bar.value.client]
-      )
-      const thumbHalf = thumb.value[bar.value.offset] / 2
-      const thumbPositionPercentage =
-        ((offset - thumbHalf) * 100 * offsetRatio.value) /
-        instance.value[bar.value.offset]
-
-      scrollbar.wrapElement[bar.value.scroll] =
-        (thumbPositionPercentage *
-          scrollbar.wrapElement[bar.value.scrollSize]) /
-        100
-    }
-
-    const startDrag = (e: MouseEvent) => {
-      e.stopImmediatePropagation()
-      cursorDown = true
-      document.addEventListener('mousemove', mouseMoveDocumentHandler)
-      document.addEventListener('mouseup', mouseUpDocumentHandler)
-      onselectstartStore = document.onselectstart
-      document.onselectstart = () => false
-    }
-
-    const mouseMoveDocumentHandler = (e: MouseEvent) => {
-      if (!instance.value || !thumb.value) return
-      if (cursorDown === false) return
-
-      const prevPage = barStore.value[bar.value.axis]
-      if (!prevPage) return
-
-      const offset =
-        (instance.value.getBoundingClientRect()[bar.value.direction] -
-          e[bar.value.client]) *
-        -1
-      const thumbClickPosition = thumb.value[bar.value.offset] - prevPage
-      const thumbPositionPercentage =
-        ((offset - thumbClickPosition) * 100 * offsetRatio.value) /
-        instance.value[bar.value.offset]
-      scrollbar.wrapElement[bar.value.scroll] =
-        (thumbPositionPercentage *
-          scrollbar.wrapElement[bar.value.scrollSize]) /
-        100
-    }
-
-    const mouseUpDocumentHandler = () => {
-      cursorDown = false
-      barStore.value[bar.value.axis] = 0
-      document.removeEventListener('mousemove', mouseMoveDocumentHandler)
-      document.removeEventListener('mouseup', mouseUpDocumentHandler)
-      document.onselectstart = onselectstartStore
-      if (cursorLeave) visible.value = false
-    }
-
-    const mouseMoveScrollbarHandler = () => {
-      cursorLeave = false
-      visible.value = !!props.size
-    }
-
-    const mouseLeaveScrollbarHandler = () => {
-      cursorLeave = true
-      visible.value = cursorDown
-    }
-
-    onBeforeUnmount(() =>
-      document.removeEventListener('mouseup', mouseUpDocumentHandler)
-    )
-
-    useEventListener(
-      toRef(scrollbar, 'scrollbarElement'),
-      'mousemove',
-      mouseMoveScrollbarHandler
-    )
-    useEventListener(
-      toRef(scrollbar, 'scrollbarElement'),
-      'mouseleave',
-      mouseLeaveScrollbarHandler
-    )
-
-    return {
-      instance,
-      thumb,
-      bar,
-      thumbStyle,
-      visible,
-      clickTrackHandler,
-      clickThumbHandler,
-    }
-  },
+defineExpose({
+  handleScroll,
+  update,
 })
 </script>

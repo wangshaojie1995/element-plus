@@ -1,8 +1,9 @@
 <template>
   <el-form
     ref="formRef"
+    style="max-width: 600px"
     :model="dynamicValidateForm"
-    label-width="120px"
+    label-width="auto"
     class="demo-dynamic"
   >
     <el-form-item
@@ -21,7 +22,7 @@
         },
       ]"
     >
-      <el-input v-model="dynamicValidateForm.email"></el-input>
+      <el-input v-model="dynamicValidateForm.email" />
     </el-form-item>
     <el-form-item
       v-for="(domain, index) in dynamicValidateForm.domains"
@@ -34,10 +35,10 @@
         trigger: 'blur',
       }"
     >
-      <el-input v-model="domain.value"></el-input>
-      <el-button class="mt-2" @click.prevent="removeDomain(domain)"
-        >Delete</el-button
-      >
+      <el-input v-model="domain.value" />
+      <el-button class="mt-2" @click.prevent="removeDomain(domain)">
+        Delete
+      </el-button>
     </el-form-item>
     <el-form-item>
       <el-button type="primary" @click="submitForm(formRef)">Submit</el-button>
@@ -49,11 +50,9 @@
 
 <script lang="ts" setup>
 import { reactive, ref } from 'vue'
-// More info see https://github.com/element-plus/element-plus/blob/dev/docs/examples/form/utils.ts
-import { resetForm, submitForm } from './utils'
-import type { ElForm } from 'element-plus'
+import type { FormInstance } from 'element-plus'
 
-const formRef = ref<InstanceType<typeof ElForm>>()
+const formRef = ref<FormInstance>()
 const dynamicValidateForm = reactive<{
   domains: DomainItem[]
   email: string
@@ -84,5 +83,22 @@ const addDomain = () => {
     key: Date.now(),
     value: '',
   })
+}
+
+const submitForm = (formEl: FormInstance | undefined) => {
+  if (!formEl) return
+  formEl.validate((valid) => {
+    if (valid) {
+      console.log('submit!')
+    } else {
+      console.log('error submit!')
+      return false
+    }
+  })
+}
+
+const resetForm = (formEl: FormInstance | undefined) => {
+  if (!formEl) return
+  formEl.resetFields()
 }
 </script>

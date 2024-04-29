@@ -1,8 +1,9 @@
 <template>
   <el-form
     ref="formRef"
+    style="max-width: 600px"
     :model="numberValidateForm"
-    label-width="100px"
+    label-width="auto"
     class="demo-ruleForm"
   >
     <el-form-item
@@ -17,7 +18,7 @@
         v-model.number="numberValidateForm.age"
         type="text"
         autocomplete="off"
-      ></el-input>
+      />
     </el-form-item>
     <el-form-item>
       <el-button type="primary" @click="submitForm(formRef)">Submit</el-button>
@@ -28,13 +29,28 @@
 
 <script lang="ts" setup>
 import { reactive, ref } from 'vue'
-// More info see https://github.com/element-plus/element-plus/blob/dev/docs/examples/form/utils.ts
-import { resetForm, submitForm } from './utils'
-import type { ElForm } from 'element-plus'
+import type { FormInstance } from 'element-plus'
 
-const formRef = ref<InstanceType<typeof ElForm>>()
+const formRef = ref<FormInstance>()
 
 const numberValidateForm = reactive({
   age: '',
 })
+
+const submitForm = (formEl: FormInstance | undefined) => {
+  if (!formEl) return
+  formEl.validate((valid) => {
+    if (valid) {
+      console.log('submit!')
+    } else {
+      console.log('error submit!')
+      return false
+    }
+  })
+}
+
+const resetForm = (formEl: FormInstance | undefined) => {
+  if (!formEl) return
+  formEl.resetFields()
+}
 </script>

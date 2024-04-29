@@ -7,23 +7,6 @@ lang: en-US
 
 Divide data collections which are related yet belong to different types.
 
-<style lang="scss">
-
-:not(.el-tabs--border-card) > .el-tabs__content {
-  padding: 32px;
-  background-color: #F4F5F7;
-  color: #6B778C;
-  font-size: 32px;
-  font-weight: 600;
-}
-
-.el-tabs--right, .el-tabs--left {
-  .el-tabs__content {
-    height: 100%;
-  }
-}
-</style>
-
 ## Basic usage
 
 Basic and concise tabs.
@@ -84,6 +67,14 @@ tabs/dynamic-tabs
 
 :::
 
+## Customized add button icon ^(2.4.0)
+
+:::demo
+
+tabs/customized-add-button-icon
+
+:::
+
 ## Customized trigger button of new tab
 
 :::demo
@@ -94,9 +85,9 @@ tabs/customized-trigger
 
 ## Tabs Attributes
 
-| Attribute             | Description                                                                                                                             | Type                                | Accepted Values       | Default           |
+| Name                  | Description                                                                                                                             | Type                                | Accepted Values       | Default           |
 | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- | --------------------- | ----------------- |
-| model-value / v-model | binding value, name of the selected tab                                                                                                 | string                              | —                     | name of first tab |
+| model-value / v-model | binding value, name of the selected tab                                                                                                 | string / number                     | —                     | name of first tab |
 | type                  | type of Tab                                                                                                                             | string                              | card/border-card      | —                 |
 | closable              | whether Tab is closable                                                                                                                 | boolean                             | —                     | false             |
 | addable               | whether Tab is addable                                                                                                                  | boolean                             | —                     | false             |
@@ -107,28 +98,31 @@ tabs/customized-trigger
 
 ## Tabs Events
 
-| Event Name | Description                                           | Parameters              |
-| ---------- | ----------------------------------------------------- | ----------------------- |
-| tab-click  | triggers when a tab is clicked                        | clicked tab             |
-| tab-remove | triggers when tab-remove button is clicked            | name of the removed tab |
-| tab-add    | triggers when tab-add button is clicked               | —                       |
-| edit       | triggers when tab-add button or tab-remove is clicked | (targetName, action)    |
+| Name       | Description                                           | Parameters                                                          |
+| ---------- | ----------------------------------------------------- | ------------------------------------------------------------------- |
+| tab-click  | triggers when a tab is clicked                        | (pane: `TabsPaneContext`, ev: `Event`)                              |
+| tab-change | triggers when `activeName` is changed                 | (name: `TabPaneName`)                                               |
+| tab-remove | triggers when tab-remove button is clicked            | (name: `TabPaneName`)                                               |
+| tab-add    | triggers when tab-add button is clicked               | —                                                                   |
+| edit       | triggers when tab-add button or tab-remove is clicked | (paneName: `TabPaneName \| undefined`, action: `'remove' \| 'add'`) |
 
 ## Tabs Slots
 
-| Name | Description               | Subtags  |
-| ---- | ------------------------- | -------- |
-| -    | customize default content | Tab-pane |
+| Name                           | Description               | Subtags  |
+| ------------------------------ | ------------------------- | -------- |
+| -                              | customize default content | Tab-pane |
+| addIcon ^(2.4.0) ^(deprecated) | customize add button icon | -        |
+| add-icon ^(2.5.4)              | customize add button icon | -        |
 
 ## Tab-pane Attributes
 
-| Attribute | Description                                                                          | Type    | Accepted Values | Default                                                                        |
-| --------- | ------------------------------------------------------------------------------------ | ------- | --------------- | ------------------------------------------------------------------------------ |
-| label     | title of the tab                                                                     | string  | —               | —                                                                              |
-| disabled  | whether Tab is disabled                                                              | boolean | —               | false                                                                          |
-| name      | identifier corresponding to the name of Tabs, representing the alias of the tab-pane | string  | —               | ordinal number of the tab-pane in the sequence, e.g. the first tab-pane is '1' |
-| closable  | whether Tab is closable                                                              | boolean | —               | false                                                                          |
-| lazy      | whether Tab is lazily rendered                                                       | boolean | —               | false                                                                          |
+| Name     | Description                                                                          | Type            | Accepted Values | Default                                                                        |
+| -------- | ------------------------------------------------------------------------------------ | --------------- | --------------- | ------------------------------------------------------------------------------ |
+| label    | title of the tab                                                                     | string          | —               | —                                                                              |
+| disabled | whether Tab is disabled                                                              | boolean         | —               | false                                                                          |
+| name     | identifier corresponding to the name of Tabs, representing the alias of the tab-pane | string / number | —               | ordinal number of the tab-pane in the sequence, e.g. the first tab-pane is '0' |
+| closable | whether Tab is closable                                                              | boolean         | —               | false                                                                          |
+| lazy     | whether Tab is lazily rendered                                                       | boolean         | —               | false                                                                          |
 
 ## Tab-pane Slots
 

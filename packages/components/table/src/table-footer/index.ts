@@ -1,5 +1,6 @@
+// @ts-nocheck
 import { defineComponent, h } from 'vue'
-import { hColgroup } from '../h-helper'
+import { useNamespace } from '@element-plus/hooks'
 import useStyle from './style-helper'
 import type { Store } from '../store'
 
@@ -42,26 +43,20 @@ export default defineComponent({
     },
   },
   setup(props) {
-    const { hasGutter, getCellClasses, getCellStyles, columns, gutterWidth } =
-      useStyle(props as TableFooter<DefaultRow>)
+    const { getCellClasses, getCellStyles, columns } = useStyle(
+      props as TableFooter<DefaultRow>
+    )
+    const ns = useNamespace('table')
     return {
+      ns,
       getCellClasses,
       getCellStyles,
-      hasGutter,
-      gutterWidth,
       columns,
     }
   },
   render() {
-    const {
-      hasGutter,
-      gutterWidth,
-      columns,
-      getCellStyles,
-      getCellClasses,
-      summaryMethod,
-      sumText,
-    } = this
+    const { columns, getCellStyles, getCellClasses, summaryMethod, sumText } =
+      this
     const data = this.store.states.data.value
     let sums = []
     if (summaryMethod) {
@@ -79,7 +74,7 @@ export default defineComponent({
         const precisions = []
         let notNumber = true
         values.forEach((value) => {
-          if (!isNaN(value)) {
+          if (!Number.isNaN(+value)) {
             notNumber = false
             const decimal = `${value}`.split('.')[1]
             precisions.push(decimal ? decimal.length : 0)
@@ -89,8 +84,10 @@ export default defineComponent({
         if (!notNumber) {
           sums[index] = values.reduce((prev, curr) => {
             const value = Number(curr)
-            if (!isNaN(value)) {
-              return parseFloat((prev + curr).toFixed(Math.min(precision, 20)))
+            if (!Number.isNaN(+value)) {
+              return Number.parseFloat(
+                (prev + curr).toFixed(Math.min(precision, 20))
+              )
             } else {
               return prev
             }
@@ -101,54 +98,31 @@ export default defineComponent({
       })
     }
     return h(
-      'table',
-      {
-        class: 'el-table__footer',
-        cellspacing: '0',
-        cellpadding: '0',
-        border: '0',
-      },
-      [
-        hColgroup(columns, hasGutter),
-        h(
-          'tbody',
-          {
-            class: [{ 'has-gutter': hasGutter }],
-          },
-          [
-            h('tr', {}, [
-              ...columns.map((column, cellIndex) =>
+      h('tfoot', [
+        h('tr', {}, [
+          ...columns.map((column, cellIndex) =>
+            h(
+              'td',
+              {
+                key: cellIndex,
+                colspan: column.colSpan,
+                rowspan: column.rowSpan,
+                class: getCellClasses(columns, cellIndex),
+                style: getCellStyles(column, cellIndex),
+              },
+              [
                 h(
-                  'td',
+                  'div',
                   {
-                    key: cellIndex,
-                    colspan: column.colSpan,
-                    rowspan: column.rowSpan,
-                    class: getCellClasses(columns, cellIndex, hasGutter),
-                    style: getCellStyles(column, cellIndex, hasGutter),
+                    class: ['cell', column.labelClassName],
                   },
-                  [
-                    h(
-                      'div',
-                      {
-                        class: ['cell', column.labelClassName],
-                      },
-                      [sums[cellIndex]]
-                    ),
-                  ]
-                )
-              ),
-              hasGutter &&
-                h('td', {
-                  class: 'el-table__fixed-right-patch el-table__cell',
-                  style: {
-                    width: `${gutterWidth}px`,
-                  },
-                }),
-            ]),
-          ]
-        ),
-      ]
+                  [sums[cellIndex]]
+                ),
+              ]
+            )
+          ),
+        ]),
+      ])
     )
   },
 })

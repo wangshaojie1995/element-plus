@@ -10,30 +10,29 @@
     </el-table-column>
     <el-table-column label="Name" width="180">
       <template #default="scope">
-        <el-popover effect="light" trigger="hover" placement="top">
+        <el-popover effect="light" trigger="hover" placement="top" width="auto">
           <template #default>
-            <p>name: {{ scope.row.name }}</p>
-            <p>address: {{ scope.row.address }}</p>
+            <div>name: {{ scope.row.name }}</div>
+            <div>address: {{ scope.row.address }}</div>
           </template>
           <template #reference>
-            <div class="name-wrapper">
-              <el-tag>{{ scope.row.name }}</el-tag>
-            </div>
+            <el-tag>{{ scope.row.name }}</el-tag>
           </template>
         </el-popover>
       </template>
     </el-table-column>
     <el-table-column label="Operations">
       <template #default="scope">
-        <el-button size="small" @click="handleEdit(scope.$index, scope.row)"
-          >Edit</el-button
-        >
+        <el-button size="small" @click="handleEdit(scope.$index, scope.row)">
+          Edit
+        </el-button>
         <el-button
           size="small"
           type="danger"
           @click="handleDelete(scope.$index, scope.row)"
-          >Delete</el-button
         >
+          Delete
+        </el-button>
       </template>
     </el-table-column>
   </el-table>
