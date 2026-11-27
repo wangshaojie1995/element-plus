@@ -28,6 +28,7 @@ const CONTEXT_STYLE = [
   'padding-right',
   'border-width',
   'box-sizing',
+  'word-break',
 ]
 
 type NodeStyle = {
@@ -40,6 +41,11 @@ type NodeStyle = {
 type TextAreaHeight = {
   height: string
   minHeight?: string
+}
+
+export const looseToNumber = (val: any): any => {
+  const n = Number.parseFloat(val)
+  return Number.isNaN(n) ? val : n
 }
 
 function calculateNodeStyling(targetElement: Element): NodeStyle {
@@ -70,7 +76,12 @@ export function calcTextareaHeight(
 ): TextAreaHeight {
   if (!hiddenTextarea) {
     hiddenTextarea = document.createElement('textarea')
-    document.body.appendChild(hiddenTextarea)
+    let hostNode = document.body
+    // #23575
+    if (!isFirefox() && targetElement.parentNode) {
+      hostNode = targetElement.parentNode as HTMLElement
+    }
+    hostNode.appendChild(hiddenTextarea)
   }
 
   const { paddingSize, borderSize, boxSizing, contextStyle } =

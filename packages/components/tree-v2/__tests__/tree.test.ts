@@ -1,9 +1,10 @@
 // @ts-nocheck
-import { nextTick } from 'vue'
+import { nextTick, ref } from 'vue'
 import { describe, expect, test, vi } from 'vitest'
 import { NOOP } from '@element-plus/utils'
 import { makeMountFunc } from '@element-plus/test-utils/make-mount'
 import Tree from '../src/tree.vue'
+
 import type {
   FilterMethod,
   TreeData,
@@ -19,6 +20,7 @@ const NODE_NUMBER = 5
 const TREE_NODE_CLASS_NAME = '.el-tree-node'
 const TREE_NODE_CONTENT_CLASS_NAME = '.el-tree-node__content'
 const TREE_NODE_EXPAND_ICON_CLASS_NAME = '.el-tree-node__expand-icon'
+const TREE_NODE_CHECKBOX_CLASS_NAME = '.el-checkbox__original'
 
 const getUniqueId = () => id++
 
@@ -68,6 +70,8 @@ interface TreeProps {
   iconClass?: string
   expandOnClickNode?: boolean
   checkOnClickNode?: boolean
+  checkOnClickLeaf?: boolean
+  scrollbarAlwaysOn?: boolean
   currentNodeKey?: TreeKey
   filterMethod?: FilterMethod
 }
@@ -130,8 +134,10 @@ const createTree = (
         :icon-class="iconClass"
         :expand-on-click-node="expandOnClickNode"
         :check-on-click-node="checkOnClickNode"
+        :check-on-click-leaf="checkOnClickLeaf"
         :current-node-key="currentNodeKey"
         :filter-method="filterMethod"
+        :scrollbar-always-on="scrollbarAlwaysOn"
         @node-click="onNodeClick"
         @node-drop="onNodeDrop"
         @node-expand="onNodeExpand"
@@ -162,8 +168,10 @@ const createTree = (
           iconClass: undefined,
           expandOnClickNode: true,
           checkOnClickNode: false,
+          checkOnClickLeaf: true,
           currentNodeKey: undefined,
           filterMethod: undefined,
+          scrollbarAlwaysOn: undefined,
           ...(options.data && options.data()),
         }
       },
@@ -210,6 +218,36 @@ describe('Virtual Tree', () => {
     await nodes[0].trigger('click')
     expect(onNodeClick).toBeCalled()
     expect(treeVm.flattenTree.length).toBeGreaterThanOrEqual(NODE_NUMBER)
+  })
+
+  test('getCurrentKey returns clicked node key in node-click event', async () => {
+    const currentKeys: TreeKey[] = []
+    const { wrapper } = createTree({
+      data() {
+        return {
+          data: [
+            {
+              id: '1',
+              label: 'node-1',
+            },
+            {
+              id: '2',
+              label: 'node-2',
+            },
+          ],
+        }
+      },
+      methods: {
+        onNodeClick() {
+          currentKeys.push(this.$refs.tree.getCurrentKey())
+        },
+      },
+    })
+    await nextTick()
+    const nodes = wrapper.findAll(TREE_NODE_CLASS_NAME)
+    await nodes[0].trigger('click')
+    await nodes[1].trigger('click')
+    expect(currentKeys).toEqual(['1', '2'])
   })
 
   test('drop on node', async () => {
@@ -455,6 +493,231 @@ describe('Virtual Tree', () => {
     expect(wrapper.findAll('.el-checkbox .is-indeterminate').length).toBe(0)
   })
 
+  test('should correctly handle checkbox state when disabled nodes exist', async () => {
+    const { wrapper, treeRef } = createTree({
+      data() {
+        return {
+          showCheckbox: true,
+          height: 400,
+          defaultExpandedKeys: ['1', '1-1', '1-2', '1-3'],
+          data: [
+            {
+              id: '1',
+              label: 'node-1',
+              children: [
+                {
+                  id: '1-1',
+                  label: 'node-1-1',
+                  children: [
+                    {
+                      id: '1-1-1',
+                      label: 'node-1-1-1',
+                    },
+                    {
+                      id: '1-1-2',
+                      label: 'node-1-1-2',
+                      disabled: true,
+                    },
+                  ],
+                },
+                {
+                  id: '1-2',
+                  label: 'node-1-2',
+                  children: [
+                    {
+                      id: '1-2-1',
+                      label: 'node-1-2-1',
+                    },
+                  ],
+                },
+                {
+                  id: '1-3',
+                  label: 'node-1-3',
+                  disabled: true,
+                  children: [
+                    {
+                      id: '1-3-1',
+                      label: 'node-1-3-1',
+                    },
+                    {
+                      id: '1-3-2',
+                      label: 'node-1-3-2',
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        }
+      },
+    })
+
+    await nextTick()
+    expect(treeRef.getCheckedKeys()).toHaveLength(0)
+
+    let nodes = wrapper.findAll(TREE_NODE_CHECKBOX_CLASS_NAME)
+    await nodes[0].trigger('click')
+    expect(treeRef.getCheckedKeys()).toEqual([
+      '1-1-1',
+      '1-2',
+      '1-2-1',
+      '1-3',
+      '1-3-1',
+      '1-3-2',
+    ])
+    nodes = wrapper.findAll(TREE_NODE_CHECKBOX_CLASS_NAME)
+    await nodes[1].trigger('click')
+    expect(treeRef.getCheckedKeys()).toEqual([
+      '1-2',
+      '1-2-1',
+      '1-3',
+      '1-3-1',
+      '1-3-2',
+    ])
+
+    nodes = wrapper.findAll(TREE_NODE_CHECKBOX_CLASS_NAME)
+    await nodes[0].trigger('click')
+    expect(treeRef.getCheckedKeys()).toEqual([
+      '1-2',
+      '1-2-1',
+      '1-3',
+      '1-3-1',
+      '1-3-2',
+      '1-1-1',
+    ])
+  })
+
+  test('showCheckbox checkOnClickLeaf', async () => {
+    const { wrapper, treeRef } = createTree({
+      data() {
+        return {
+          showCheckbox: true,
+          checkOnClickLeaf: true,
+          height: 400,
+          data: [
+            {
+              id: '1',
+              label: 'node-1',
+              children: [
+                {
+                  id: '1-1',
+                  label: 'node-1-1',
+                  children: [
+                    {
+                      id: '1-1-1',
+                      label: 'node-1-1-1',
+                    },
+                    {
+                      id: '1-1-2',
+                      label: 'node-1-1-2',
+                    },
+                  ],
+                },
+                {
+                  id: '1-2',
+                  label: 'node-1-2',
+                  children: [
+                    {
+                      id: '1-2-1',
+                      label: 'node-1-2-1',
+                    },
+                  ],
+                },
+                {
+                  id: '1-3',
+                  label: 'node-1-3',
+                },
+              ],
+            },
+            {
+              id: '2',
+              label: 'node-2',
+            },
+          ],
+        }
+      },
+    })
+    await nextTick()
+    expect(treeRef.getCheckedKeys()).toHaveLength(0)
+    let nodes = wrapper.findAll(TREE_NODE_CLASS_NAME)
+    await nodes[0].trigger('click')
+    nodes = wrapper.findAll(TREE_NODE_CLASS_NAME)
+    await nodes[1].trigger('click')
+    nodes = wrapper.findAll(TREE_NODE_CLASS_NAME)
+
+    expect(nodes).toHaveLength(7)
+    await nodes[2].trigger('click')
+    expect(treeRef.getCheckedKeys().toString()).toBe(['1-1-1'].toString())
+    await nodes[3].trigger('click')
+    expect(nodes).toHaveLength(7)
+    expect(treeRef.getCheckedKeys().toString()).toBe(
+      ['1-1-1', '1-1-2', '1-1'].toString()
+    )
+  })
+
+  test('showCheckbox :checkOnClickLeaf="false"', async () => {
+    const { wrapper, treeRef } = createTree({
+      data() {
+        return {
+          showCheckbox: true,
+          checkOnClickLeaf: false,
+          height: 400,
+          data: [
+            {
+              id: '1',
+              label: 'node-1',
+              children: [
+                {
+                  id: '1-1',
+                  label: 'node-1-1',
+                  children: [
+                    {
+                      id: '1-1-1',
+                      label: 'node-1-1-1',
+                    },
+                    {
+                      id: '1-1-2',
+                      label: 'node-1-1-2',
+                    },
+                  ],
+                },
+                {
+                  id: '1-2',
+                  label: 'node-1-2',
+                  children: [
+                    {
+                      id: '1-2-1',
+                      label: 'node-1-2-1',
+                    },
+                  ],
+                },
+                {
+                  id: '1-3',
+                  label: 'node-1-3',
+                },
+              ],
+            },
+            {
+              id: '2',
+              label: 'node-2',
+            },
+          ],
+        }
+      },
+    })
+    await nextTick()
+    expect(treeRef.getCheckedKeys()).toHaveLength(0)
+    let nodes = wrapper.findAll(TREE_NODE_CLASS_NAME)
+    await nodes[0].trigger('click')
+    nodes = wrapper.findAll(TREE_NODE_CLASS_NAME)
+    await nodes[1].trigger('click')
+    nodes = wrapper.findAll(TREE_NODE_CLASS_NAME)
+
+    expect(nodes).toHaveLength(7)
+    await nodes[2].trigger('click')
+    expect(treeRef.getCheckedKeys()).toHaveLength(0)
+  })
+
   test('defaultCheckedKeys', async () => {
     const { treeRef } = createTree({
       data() {
@@ -575,6 +838,7 @@ describe('Virtual Tree', () => {
   })
 
   test('defaultExpandedKeys', async () => {
+    const defaultExpandedKeys = ref([])
     const { wrapper } = createTree({
       data() {
         return {
@@ -619,13 +883,91 @@ describe('Virtual Tree', () => {
               label: 'node-2',
             },
           ],
-          defaultExpandedKeys: ['1'],
+          defaultExpandedKeys,
+        }
+      },
+    })
+    await nextTick()
+    defaultExpandedKeys.value = ['1']
+    await nextTick()
+    const nodes = wrapper.findAll(TREE_NODE_CLASS_NAME)
+    expect(nodes.length).toBe(5)
+  })
+
+  test('defaultExpandedKeys change should update expand icon state', async () => {
+    const defaultExpandedKeys = ref<string[]>([])
+    const { wrapper } = createTree({
+      data() {
+        return {
+          height: 400,
+          data: [
+            {
+              id: '1',
+              label: 'node-1',
+              children: [
+                {
+                  id: '1-1',
+                  label: 'node-1-1',
+                },
+              ],
+            },
+            {
+              id: '2',
+              label: 'node-2',
+            },
+          ],
+          defaultExpandedKeys,
+        }
+      },
+    })
+    await nextTick()
+    let expandIcons = wrapper.findAll(TREE_NODE_EXPAND_ICON_CLASS_NAME)
+    expect(expandIcons.length).toBe(2)
+    expect(expandIcons[0].classes()).not.toContain('expanded')
+    defaultExpandedKeys.value = ['1']
+    await nextTick()
+    expandIcons = wrapper.findAll(TREE_NODE_EXPAND_ICON_CLASS_NAME)
+    expect(expandIcons[0].classes()).toContain('expanded')
+    defaultExpandedKeys.value = []
+    await nextTick()
+    expandIcons = wrapper.findAll(TREE_NODE_EXPAND_ICON_CLASS_NAME)
+    expect(expandIcons[0].classes()).not.toContain('expanded')
+  })
+
+  test('defaultExpandedKeys with child key should expand parent nodes', async () => {
+    const { wrapper } = createTree({
+      data() {
+        return {
+          height: 400,
+          data: [
+            {
+              id: '1',
+              label: 'node-1',
+              children: [
+                {
+                  id: '1-1',
+                  label: 'node-1-1',
+                  children: [
+                    { id: '1-1-1', label: 'node-1-1-1' },
+                    { id: '1-1-2', label: 'node-1-1-2' },
+                  ],
+                },
+                { id: '1-2', label: 'node-1-2' },
+                { id: '1-3', label: 'node-1-3' },
+              ],
+            },
+            { id: '2', label: 'node-2' },
+          ],
+          defaultExpandedKeys: ['1-1-1'],
         }
       },
     })
     await nextTick()
     const nodes = wrapper.findAll(TREE_NODE_CLASS_NAME)
-    expect(nodes.length).toBe(5)
+    expect(nodes.length).toBe(7)
+    const expandIcons = wrapper.findAll(TREE_NODE_EXPAND_ICON_CLASS_NAME)
+    expect(expandIcons[0].classes()).toContain('expanded')
+    expect(expandIcons[1].classes()).toContain('expanded')
   })
 
   test('setExpandedKeys', async () => {
@@ -842,6 +1184,54 @@ describe('Virtual Tree', () => {
     expect(nodes[1].classes()).toContain('is-current')
   })
 
+  test('currentNodeKey with zero key', async () => {
+    const { wrapper, treeRef } = createTree({
+      data() {
+        return {
+          currentNodeKey: 0,
+          data: [
+            {
+              id: 0,
+              label: 'node-0',
+            },
+          ],
+        }
+      },
+    })
+    await nextTick()
+    const nodes = wrapper.findAll(TREE_NODE_CLASS_NAME)
+    expect(nodes[0].classes()).toContain('is-current')
+    expect(treeRef.getCurrentKey()).toBe(0)
+    expect(treeRef.getCurrentNode()).toMatchObject({
+      id: 0,
+      label: 'node-0',
+    })
+  })
+
+  test('currentNodeKey with empty string key', async () => {
+    const { wrapper, treeRef } = createTree({
+      data() {
+        return {
+          currentNodeKey: '',
+          data: [
+            {
+              id: '',
+              label: 'empty',
+            },
+          ],
+        }
+      },
+    })
+    await nextTick()
+    const nodes = wrapper.findAll(TREE_NODE_CLASS_NAME)
+    expect(nodes[0].classes()).toContain('is-current')
+    expect(treeRef.getCurrentKey()).toBe('')
+    expect(treeRef.getCurrentNode()).toMatchObject({
+      id: '',
+      label: 'empty',
+    })
+  })
+
   test('customNodeClass', async () => {
     const { wrapper } = createTree({
       data() {
@@ -880,6 +1270,18 @@ describe('Virtual Tree', () => {
     })
     await nextTick()
     expect(wrapper.find('.custom-tree-node-content').text()).toBe('cc node-1')
+  })
+
+  test('scrollbar-always-on', async () => {
+    const { wrapper } = createTree({
+      data() {
+        return {
+          scrollbarAlwaysOn: true,
+        }
+      },
+    })
+    const el = wrapper.find('.el-virtual-scrollbar.always-on')
+    expect(el.exists()).toBe(true)
   })
 
   test('filter', async () => {
@@ -940,6 +1342,7 @@ describe('Virtual Tree', () => {
     expect(nodes.map((node) => node.text()).toString()).toBe(
       ['node-1', 'node-1-1', 'node-1-1-1'].toString()
     )
+    expect(wrapper.findAll('.expanded').length).toBe(2)
   })
 
   describe('events', () => {
@@ -1133,7 +1536,7 @@ describe('Virtual Tree', () => {
     })
 
     test('setCheckedKeys', async () => {
-      const { treeRef } = createTree({
+      const { treeRef, wrapper } = createTree({
         data() {
           return {
             showCheckbox: true,
@@ -1187,6 +1590,26 @@ describe('Virtual Tree', () => {
       const halfCheckedKeys = treeRef.getHalfCheckedKeys()
       expect(checkedKeys.toString()).toBe(['1-1', '1-1-1', '1-1-2'].toString())
       expect(halfCheckedKeys.toString()).toBe(['1'].toString())
+
+      const allCheckedKeys = [
+        '1',
+        '1-1',
+        '1-1-1',
+        '1-1-2',
+        '1-2',
+        '1-2-1',
+        '1-3',
+      ]
+      treeRef.setCheckedKeys(['1'])
+      await nextTick()
+      expect(treeRef.getCheckedKeys()).toEqual(allCheckedKeys)
+
+      treeRef.setCheckedKeys([])
+      await nextTick()
+      expect(treeRef.getCheckedKeys()).toHaveLength(0)
+
+      await wrapper.find(TREE_NODE_CHECKBOX_CLASS_NAME).trigger('click')
+      expect(treeRef.getCheckedKeys()).toEqual(allCheckedKeys)
     })
 
     test('setChecked', async () => {
@@ -1243,6 +1666,64 @@ describe('Virtual Tree', () => {
       const halfCheckedKeys = treeRef.getHalfCheckedKeys()
       expect(checkedKeys.toString()).toBe(['1-1', '1-1-1', '1-1-2'].toString())
       expect(halfCheckedKeys.toString()).toBe(['1'].toString())
+    })
+
+    test('should respect deep option when calling setChecked in checkStrictly mode', async () => {
+      const { treeRef } = createTree({
+        data() {
+          return {
+            showCheckbox: true,
+            checkStrictly: true,
+            data: [
+              {
+                id: '1',
+                label: 'node-1',
+                children: [
+                  {
+                    id: '1-1',
+                    label: 'node-1-1',
+                    children: [
+                      {
+                        id: '1-1-1',
+                        label: 'node-1-1-1',
+                      },
+                      {
+                        id: '1-1-2',
+                        label: 'node-1-1-2',
+                      },
+                    ],
+                  },
+                  {
+                    id: '1-2',
+                    label: 'node-1-2',
+                    children: [
+                      {
+                        id: '1-2-1',
+                        label: 'node-1-2-1',
+                      },
+                    ],
+                  },
+                  {
+                    id: '1-3',
+                    label: 'node-1-3',
+                  },
+                ],
+              },
+              {
+                id: '2',
+                label: 'node-2',
+              },
+            ],
+          }
+        },
+      })
+      await nextTick()
+
+      treeRef.setChecked('1-1', true)
+      expect(treeRef.getCheckedKeys()).toEqual(['1-1'])
+
+      treeRef.setChecked('1-1', true, true)
+      expect(treeRef.getCheckedKeys()).toEqual(['1-1', '1-1-1', '1-1-2'])
     })
 
     test('getCurrent', async () => {
@@ -1433,5 +1914,162 @@ describe('Virtual Tree', () => {
       treeVm.scrollTo(100)
       expect(scrollTo).toHaveBeenCalledWith(100)
     })
+  })
+
+  test('icon display should be normal when expanding nodes using setExpandedKeys', async () => {
+    const { treeRef, wrapper } = createTree({
+      data() {
+        return {
+          height: 400,
+          data: [
+            {
+              id: '1',
+              label: 'node-1',
+              children: [
+                {
+                  id: '1-1',
+                  label: 'node-1-1',
+                  children: [
+                    {
+                      id: '1-1-1',
+                      label: 'node-1-1-1',
+                      children: [
+                        {
+                          id: '1-1-1-1',
+                          label: 'node-1-1-1-1',
+                        },
+                        {
+                          id: '1-1-1-2',
+                          label: 'node-1-1-1-2',
+                        },
+                      ],
+                    },
+                    {
+                      id: '1-1-2',
+                      label: 'node-1-1-2',
+                    },
+                  ],
+                },
+              ],
+            },
+            {
+              id: '2',
+              label: 'node-2',
+              children: [
+                {
+                  id: '2-1',
+                  label: 'node-2-1',
+                  children: [
+                    {
+                      id: '2-1-1',
+                      label: 'node-2-1-1',
+                    },
+                    {
+                      id: '2-1-2',
+                      label: 'node-2-1-2',
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        }
+      },
+    })
+    await nextTick()
+    const firstTreeNode = wrapper.find(TREE_NODE_CLASS_NAME)
+    await firstTreeNode.trigger('click')
+    const firstExpandedNodes = wrapper.findAll('.expanded')
+    expect(firstExpandedNodes.length).toBe(1)
+    treeRef.setExpandedKeys(['2-1'])
+    await nextTick()
+    const secondExpandedNodes = wrapper.findAll('.expanded')
+    expect(secondExpandedNodes.length).toBe(2)
+  })
+
+  test('call collapseNode/expandNode icon status error', async () => {
+    const { treeRef, wrapper } = createTree({
+      data() {
+        return {
+          expandOnClickNode: false,
+          highlightCurrent: true,
+          data: [
+            {
+              id: '1',
+              label: 'Level one 1',
+              children: [
+                {
+                  id: '1-1',
+                  label: 'Level two 1-1',
+                },
+              ],
+            },
+          ],
+        }
+      },
+      methods: {
+        toggleExpand(node) {
+          if (node.expanded) {
+            treeRef.collapseNode(node)
+          } else {
+            treeRef.expandNode(node)
+          }
+        },
+      },
+      slots: {
+        default: `<div class='dblclick-node' @dblclick="toggleExpand(node)">{{ node.label }}</div>`,
+      },
+    })
+
+    await nextTick()
+    const dblclickNode = wrapper.find('.dblclick-node')
+
+    await dblclickNode.trigger('dblclick')
+    await nextTick()
+    const iconWrapper = wrapper.findAll(TREE_NODE_EXPAND_ICON_CLASS_NAME)
+    expect(iconWrapper.length).toBe(2)
+    expect(iconWrapper[0].classes()).toContain('expanded')
+
+    await dblclickNode.trigger('dblclick')
+    await nextTick()
+    const iconWrapper1 = wrapper.findAll(TREE_NODE_EXPAND_ICON_CLASS_NAME)
+    expect(iconWrapper1.length).toBe(1)
+    expect(iconWrapper1[0].classes()).not.toContain('expanded')
+  })
+
+  test('default slot. node.expanded value', async () => {
+    const { wrapper } = createTree({
+      data() {
+        return {
+          data: [
+            {
+              id: '1',
+              label: 'Level one 1',
+              children: [
+                {
+                  id: '1-1',
+                  label: 'Level two 1-1',
+                },
+              ],
+            },
+          ],
+        }
+      },
+      slots: {
+        default: `<div class='node'>{{ node.expanded ? '1' : '2' }}</div>`,
+      },
+    })
+
+    await nextTick()
+    const nodeDiv = wrapper.find('.node')
+    expect(nodeDiv.text()).toBe('2')
+
+    await nodeDiv.trigger('click')
+    await nextTick()
+    expect(nodeDiv.text()).toBe('1')
+
+    await nodeDiv.trigger('click')
+    await nextTick()
+    expect(nodeDiv.text()).toBe('2')
   })
 })

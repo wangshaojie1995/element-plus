@@ -1,12 +1,15 @@
-// @ts-nocheck
 import type { Store } from '../store'
+import type { DefaultRow } from './defaults'
 
-function useUtils<T>(store: Store<T>) {
-  const setCurrentRow = (row: T) => {
+function useUtils<T extends DefaultRow>(store: Store<T>) {
+  const setCurrentRow = (row?: T) => {
     store.commit('setCurrentRow', row)
   }
   const getSelectionRows = () => {
     return store.getSelectionRows()
+  }
+  const getHalfSelectionRows = () => {
+    return store.getHalfSelectionRows()
   }
   const toggleRowSelection = (
     row: T,
@@ -19,7 +22,7 @@ function useUtils<T>(store: Store<T>) {
   const clearSelection = () => {
     store.clearSelection()
   }
-  const clearFilter = (columnKeys?: string[]) => {
+  const clearFilter = (columnKeys?: string[] | string) => {
     store.clearFilter(columnKeys)
   }
   const toggleAllSelection = () => {
@@ -41,6 +44,7 @@ function useUtils<T>(store: Store<T>) {
   return {
     setCurrentRow,
     getSelectionRows,
+    getHalfSelectionRows,
     toggleRowSelection,
     clearSelection,
     clearFilter,

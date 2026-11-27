@@ -1,9 +1,10 @@
 import { nextTick } from 'vue'
 import { mount } from '@vue/test-utils'
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test, vi } from 'vitest'
 import makeScroll from '@element-plus/test-utils/make-scroll'
 import defineGetter from '@element-plus/test-utils/define-getter'
 import Scrollbar from '../src/scrollbar.vue'
+import Thumb from '../src/thumb.vue'
 
 describe('ScrollBar', () => {
   test('vertical', async () => {
@@ -193,7 +194,8 @@ describe('ScrollBar', () => {
     })
 
     const scrollbar = wrapper.findComponent({ ref: 'scrollbar' }).vm
-    const scrollDom = wrapper.find('.el-scrollbar__wrap').element
+    const scrollWrap = wrapper.find('.el-scrollbar__wrap')
+    const scrollDom = scrollWrap.element
 
     const offsetHeightRestore = defineGetter(
       scrollDom,
@@ -218,13 +220,18 @@ describe('ScrollBar', () => {
 
     scrollbar.setScrollTop(100)
     await nextTick()
-    scrollbar.setScrollLeft(100)
+    scrollWrap.trigger('scroll')
     await nextTick()
     expect(wrapper.find('.is-vertical div').attributes('style')).toContain(
-      'transform: translateY(0%); height: 80px;'
+      'transform: translateY(50%); height: 80px;'
     )
+
+    scrollbar.setScrollLeft(100)
+    await nextTick()
+    scrollWrap.trigger('scroll')
+    await nextTick()
     expect(wrapper.find('.is-horizontal div').attributes('style')).toContain(
-      'transform: translateX(0%); width: 80px;'
+      'transform: translateX(50%); width: 80px;'
     )
 
     offsetHeightRestore()
@@ -307,5 +314,81 @@ describe('ScrollBar', () => {
     const wrapper = mount(() => <Scrollbar view-class={viewClass} />)
 
     expect(wrapper.find('.el-scrollbar__view').classes()).toContain(viewClass)
+  })
+
+  test('should not bubble up click event on click scrollbar', async () => {
+    const parentClick = vi.fn()
+    const wrapper = mount(() => (
+      <div onClick={parentClick}>
+        <Scrollbar style={{ width: '100px' }}>
+          ILoveRemILoveRemILoveRem
+        </Scrollbar>
+      </div>
+    ))
+    const scrollbar = wrapper.findComponent(Thumb)
+    await scrollbar.trigger('click')
+    expect(parentClick).toHaveBeenCalledTimes(0)
+  })
+
+  test('should emit end-reached event foreach direction', async () => {
+    const endReached = vi.fn()
+    const outerHeight = 204
+    const innerHeight = 500
+    const outerWidth = 204
+    const innerWidth = 500
+    const wrapper = mount(() => (
+      <Scrollbar
+        style={`height: ${outerHeight}px; width: ${outerWidth}px;`}
+        onEnd-reached={endReached}
+      >
+        <div style={`height: ${innerHeight}px; width: ${innerWidth}px;`}></div>
+      </Scrollbar>
+    ))
+
+    const scrollDom = wrapper.find('.el-scrollbar__wrap').element
+
+    const offsetHeightRestore = defineGetter(
+      scrollDom,
+      'offsetHeight',
+      outerHeight
+    )
+    const scrollHeightRestore = defineGetter(
+      scrollDom,
+      'scrollHeight',
+      innerHeight
+    )
+    const offsetWidthRestore = defineGetter(
+      scrollDom,
+      'offsetWidth',
+      outerWidth
+    )
+    const scrollWidthRestore = defineGetter(
+      scrollDom,
+      'scrollWidth',
+      innerWidth
+    )
+
+    await makeScroll(scrollDom, 'scrollTop', innerHeight)
+    expect(endReached).toHaveBeenCalledWith('bottom')
+    endReached.mockReset()
+    await makeScroll(scrollDom, 'scrollTop', 0)
+    expect(endReached).toHaveBeenCalledWith('top')
+    endReached.mockReset()
+    await makeScroll(scrollDom, 'scrollLeft', innerWidth)
+    expect(endReached).toHaveBeenCalledWith('right')
+    endReached.mockReset()
+    await makeScroll(scrollDom, 'scrollLeft', 0)
+    expect(endReached).toHaveBeenCalledWith('left')
+    endReached.mockReset()
+    await makeScroll(scrollDom, 'scrollLeft', innerWidth / 2)
+    expect(endReached).not.toHaveBeenCalled()
+    endReached.mockReset()
+    await makeScroll(scrollDom, 'scrollTop', innerHeight / 2)
+    expect(endReached).not.toHaveBeenCalled()
+
+    offsetHeightRestore()
+    scrollHeightRestore()
+    offsetWidthRestore()
+    scrollWidthRestore()
   })
 })

@@ -1,6 +1,5 @@
-// @ts-nocheck
 import { computed, getCurrentInstance, ref, toRefs, unref, watch } from 'vue'
-import { hasOwn, isArray, isString } from '@element-plus/utils'
+import { ensureArray, hasOwn, isArray, isString } from '@element-plus/utils'
 import {
   getColumnById,
   getColumnByKey,
@@ -15,10 +14,22 @@ import useTree from './tree'
 
 import type { Ref } from 'vue'
 import type { TableColumnCtx } from '../table-column/defaults'
-import type { DefaultRow, Table, TableRefs } from '../table/defaults'
+import type {
+  DefaultRow,
+  Table,
+  TableRefs,
+  TableSortOrder,
+} from '../table/defaults'
 import type { StoreFilter } from '.'
 
-const sortData = (data, states) => {
+const sortData = <T extends DefaultRow>(
+  data: T[],
+  states: {
+    sortingColumn: TableColumnCtx<T> | null
+    sortProp: string | null
+    sortOrder: string | number | null
+  }
+) => {
   const sortingColumn = states.sortingColumn
   if (!sortingColumn || isString(sortingColumn.sortable)) {
     return data
@@ -32,8 +43,10 @@ const sortData = (data, states) => {
   )
 }
 
-const doFlattenColumns = (columns) => {
-  const result = []
+const doFlattenColumns = <T extends DefaultRow>(
+  columns: TableColumnCtx<T>[]
+) => {
+  const result: TableColumnCtx<T>[] = []
   columns.forEach((column) => {
     if (column.children && column.children.length > 0) {
       // eslint-disable-next-line prefer-spread
@@ -45,10 +58,10 @@ const doFlattenColumns = (columns) => {
   return result
 }
 
-function useWatcher<T>() {
+function useWatcher<T extends DefaultRow>() {
   const instance = getCurrentInstance() as Table<T>
   const { size: tableSize } = toRefs(instance.proxy?.$props as any)
-  const rowKey: Ref<string> = ref(null)
+  const rowKey: Ref<string | null> = ref(null)
   const data: Ref<T[]> = ref([])
   const _data: Ref<T[]> = ref([])
   const isComplex = ref(false)
@@ -66,19 +79,33 @@ function useWatcher<T>() {
   const rightFixedLeafColumnsLength = ref(0)
   const isAllSelected = ref(false)
   const selection: Ref<T[]> = ref([])
+  const selectionIndeterminate = ref<Record<string, boolean>>({})
   const reserveSelection = ref(false)
   const selectOnIndeterminate = ref(false)
-  const selectable: Ref<(row: T, index: number) => boolean> = ref(null)
+  const selectable: Ref<((row: T, index: number) => boolean) | null> = ref(null)
+  const rowExpandable: Ref<((row: T, index: number) => boolean) | null> =
+    ref(null)
   const filters: Ref<StoreFilter> = ref({})
-  const filteredData = ref(null)
-  const sortingColumn = ref(null)
-  const sortProp = ref(null)
-  const sortOrder = ref(null)
-  const hoverRow = ref(null)
+  const filteredData: Ref<T[] | null> = ref(null)
+  const sortingColumn: Ref<TableColumnCtx<T> | null> = ref(null)
+  const sortProp: Ref<string | null> = ref(null)
+  const sortOrder: Ref<TableSortOrder | null> = ref(null)
+  const hoverRow: Ref<T | null> = ref(null)
+
+  let halfSelection: T[] = []
 
   const selectedMap = computed(() => {
     return rowKey.value ? getKeysMap(selection.value, rowKey.value) : undefined
   })
+
+  const getRowChildren = (row: T): T[] => {
+    const { childrenColumnName, lazyTreeNodeMap } = instance.store.states
+    const inlineChildren = (row[childrenColumnName.value] ?? []) as T[]
+    if (!rowKey.value) return inlineChildren
+    const id = getRowIdentity(row, rowKey.value)
+    const lazyChildren = (lazyTreeNodeMap.value?.[id] ?? []) as T[]
+    return [...lazyChildren, ...inlineChildren]
+  }
 
   watch(
     data,
@@ -96,12 +123,10 @@ function useWatcher<T>() {
     }
   )
 
-  // 检查 rowKey 是否存在
   const assertRowKey = () => {
     if (!rowKey.value) throw new Error('[ElTable] prop row-key is required')
   }
 
-  // 更新 fixed
   const updateChildFixed = (column: TableColumnCtx<T>) => {
     column.children?.forEach((childColumn) => {
       childColumn.fixed = column.fixed
@@ -109,24 +134,28 @@ function useWatcher<T>() {
     })
   }
 
-  // 更新列
   const updateColumns = () => {
     _columns.value.forEach((column) => {
       updateChildFixed(column)
     })
-    fixedColumns.value = _columns.value.filter(
-      (column) =>
-        column.type !== 'selection' && [true, 'left'].includes(column.fixed)
+    fixedColumns.value = _columns.value.filter((column) =>
+      [true, 'left'].includes(column.fixed)
     )
 
-    let selectColFixLeft
-    if (_columns.value?.[0]?.type === 'selection') {
-      const selectColumn = _columns.value[0]
-      selectColFixLeft =
-        [true, 'left'].includes(selectColumn.fixed) ||
-        (fixedColumns.value.length && selectColumn.fixed !== 'right')
-      if (selectColFixLeft) {
+    const selectColumn = _columns.value.find(
+      (column) => column.type === 'selection'
+    )
+
+    let selectColFixLeft: boolean
+    if (
+      selectColumn &&
+      selectColumn.fixed !== 'right' &&
+      !fixedColumns.value.includes(selectColumn)
+    ) {
+      const selectColumnIndex = _columns.value.indexOf(selectColumn)
+      if (selectColumnIndex === 0 && fixedColumns.value.length) {
         fixedColumns.value.unshift(selectColumn)
+        selectColFixLeft = true
       }
     }
 
@@ -139,8 +168,7 @@ function useWatcher<T>() {
         (selectColFixLeft ? column.type !== 'selection' : true) && !column.fixed
     )
 
-    originColumns.value = []
-      .concat(fixedColumns.value)
+    originColumns.value = Array.from(fixedColumns.value)
       .concat(notFixedColumns)
       .concat(rightFixedColumns.value)
     const leafColumns = doFlattenColumns(notFixedColumns)
@@ -151,15 +179,13 @@ function useWatcher<T>() {
     fixedLeafColumnsLength.value = fixedLeafColumns.length
     rightFixedLeafColumnsLength.value = rightFixedLeafColumns.length
 
-    columns.value = []
-      .concat(fixedLeafColumns)
+    columns.value = Array.from(fixedLeafColumns)
       .concat(leafColumns)
       .concat(rightFixedLeafColumns)
     isComplex.value =
       fixedColumns.value.length > 0 || rightFixedColumns.value.length > 0
   }
 
-  // 更新 DOM
   const scheduleLayout = (needUpdateColumns?: boolean, immediate = false) => {
     if (needUpdateColumns) {
       updateColumns()
@@ -171,8 +197,7 @@ function useWatcher<T>() {
     }
   }
 
-  // 选择
-  const isSelected = (row: DefaultRow) => {
+  const isSelected = (row: T) => {
     if (selectedMap.value) {
       return !!selectedMap.value[getRowIdentity(row, rowKey.value)]
     } else {
@@ -180,10 +205,134 @@ function useWatcher<T>() {
     }
   }
 
+  // Used by selectable to compute row indices in tree-shaped data
+  const rowIndexMap = computed(() => {
+    const map = new Map<string, number>()
+    if (!rowKey.value || !selectable.value) return map
+    let index = 0
+    const _traverse = (rows: T[]) => {
+      if (!isArray(rows)) return
+      rows.forEach((row) => {
+        const id = getRowIdentity(row, rowKey.value)
+        map.set(id, index)
+        index += 1
+        const children = getRowChildren(row)
+        if (children.length) _traverse(children)
+      })
+    }
+    _traverse(data.value || [])
+    return map
+  })
+
+  // Update parent selection and indeterminate state based on children selection
+  const updateSelectionByChildren = (
+    options: {
+      emitChange?: boolean
+      rowIndexMap?: Map<string, number>
+    } = {}
+  ) => {
+    const { emitChange = true } = options
+    if (treeStates.checkStrictly.value || !rowKey.value) {
+      selectionIndeterminate.value = {}
+      halfSelection = []
+      return
+    }
+    const rowKeyValue = rowKey.value
+    const rowIndexMapValue = options.rowIndexMap ?? rowIndexMap.value
+    const selectableFn = selectable.value
+    const rowIdCache = new WeakMap<T, string>()
+    const getCachedRowId = (row: T) => {
+      const cachedId = rowIdCache.get(row)
+      if (cachedId) return cachedId
+      const id = getRowIdentity(row, rowKeyValue)
+      rowIdCache.set(row, id)
+      return id
+    }
+    const indeterminateMap: Record<string, boolean> = {}
+    const nextHalfSelection: T[] = []
+    const selectedIdSet = new Set(
+      selection.value.map((row) => getCachedRowId(row))
+    )
+    const rowsToAdd: T[] = []
+    let selectionChanged = false
+    // Sync parent selection without triggering external select event
+    const _updateSelectionForRow = (row: T, id: string, selected: boolean) => {
+      const isRowSelected = selectedIdSet.has(id)
+      if (selected && !isRowSelected) {
+        rowsToAdd.push(row)
+        selectedIdSet.add(id)
+        selectionChanged = true
+      } else if (!selected && isRowSelected) {
+        selectedIdSet.delete(id)
+        selectionChanged = true
+      }
+    }
+    const _walk = (rows: T[]) => {
+      let selectedCount = 0
+      let selectableCount = 0
+      if (!isArray(rows)) return { selectedCount, selectableCount }
+      rows.forEach((row) => {
+        const id = getCachedRowId(row)
+        const children = getRowChildren(row)
+        let childSelectedCount = 0
+        let childSelectableCount = 0
+        if (children.length) {
+          const childResult = _walk(children)
+          childSelectedCount = childResult.selectedCount
+          childSelectableCount = childResult.selectableCount
+        }
+        const rowSelectable = selectableFn
+          ? selectableFn.call(null, row, rowIndexMapValue.get(id) ?? 0)
+          : true
+        if (rowSelectable) {
+          if (childSelectableCount > 0) {
+            const allSelected = childSelectedCount === childSelectableCount
+            const noneSelected = childSelectedCount === 0
+            if (!allSelected && !noneSelected) {
+              indeterminateMap[id] = true
+              nextHalfSelection.push(row)
+            }
+            _updateSelectionForRow(row, id, allSelected)
+          }
+        }
+        if (rowSelectable) {
+          selectableCount += 1
+          if (selectedIdSet.has(id)) {
+            selectedCount += 1
+          }
+        }
+        selectedCount += childSelectedCount
+        selectableCount += childSelectableCount
+      })
+      return { selectedCount, selectableCount }
+    }
+    _walk(data.value || [])
+    if (selectionChanged) {
+      const nextSelection = selection.value.filter((row) =>
+        selectedIdSet.has(getCachedRowId(row))
+      )
+      rowsToAdd.forEach((row) => {
+        if (!selectedIdSet.has(getCachedRowId(row))) return
+        nextSelection.push(row)
+      })
+      selection.value = nextSelection
+    }
+    selectionIndeterminate.value = indeterminateMap
+    halfSelection = nextHalfSelection
+    if (selectionChanged && emitChange) {
+      instance.emit(
+        'selection-change',
+        selection.value ? selection.value.slice() : []
+      )
+    }
+  }
+
   const clearSelection = () => {
     isAllSelected.value = false
     const oldSelection = selection.value
     selection.value = []
+    selectionIndeterminate.value = {}
+    halfSelection = []
     if (oldSelection.length) {
       instance.emit('selection-change', [])
     }
@@ -193,7 +342,24 @@ function useWatcher<T>() {
     let deleted
     if (rowKey.value) {
       deleted = []
-      const dataMap = getKeysMap(data.value, rowKey.value)
+      const childrenKey = instance?.store?.states?.childrenColumnName.value
+      const dataMap = getKeysMap(data.value, rowKey.value, true, childrenKey)
+      // Include lazy-loaded children only if their parent is still in data
+      const { lazyTreeNodeMap } = instance.store.states
+      if (lazyTreeNodeMap.value) {
+        Object.entries(lazyTreeNodeMap.value).forEach(
+          ([parentId, lazyRows]) => {
+            if (dataMap[parentId]) {
+              ;(lazyRows as T[]).forEach((row) => {
+                const id = getRowIdentity(row, rowKey.value)
+                if (!dataMap[id]) {
+                  dataMap[id] = { row, index: -1 }
+                }
+              })
+            }
+          }
+        )
+      }
       for (const key in selectedMap.value) {
         if (hasOwn(selectedMap.value, key) && !dataMap[key]) {
           deleted.push(selectedMap.value[key].row)
@@ -207,12 +373,58 @@ function useWatcher<T>() {
         (item) => !deleted.includes(item)
       )
       selection.value = newSelection
-      instance.emit('selection-change', newSelection.slice())
+      updateSelectionByChildren({ emitChange: false })
+      instance.emit('selection-change', [...newSelection])
     }
   }
 
   const getSelectionRows = () => {
     return (selection.value || []).slice()
+  }
+
+  const getHalfSelectionRows = () => {
+    return halfSelection.slice()
+  }
+
+  const cascadeToLazyChildren = (
+    row: T,
+    selected: boolean,
+    rowIndexMap: Map<string, number>
+  ) => {
+    if (
+      !rowKey.value ||
+      treeStates.checkStrictly.value ||
+      !treeStates.lazy.value
+    )
+      return
+    const { lazyTreeNodeMap, childrenColumnName } = instance.store.states
+    const id = getRowIdentity(row, rowKey.value)
+    const lazyChildren = (lazyTreeNodeMap.value?.[id] ?? []) as T[]
+    const inlineChildren = (row[childrenColumnName.value] ?? []) as T[]
+    const treeProps = {
+      children: childrenColumnName.value,
+      checkStrictly: false,
+    }
+
+    for (const child of lazyChildren) {
+      const childIndex =
+        rowIndexMap.get(getRowIdentity(child, rowKey.value)) ?? 0
+      toggleRowStatus(
+        selection.value,
+        child,
+        selected,
+        treeProps,
+        selectable.value,
+        childIndex,
+        rowKey.value
+      )
+      // Recursively handle lazy children's inline descendants
+      cascadeToLazyChildren(child, selected, rowIndexMap)
+    }
+    // Only recurse into inline children (lazy children handled above)
+    for (const child of inlineChildren) {
+      cascadeToLazyChildren(child, selected, rowIndexMap)
+    }
   }
 
   const toggleRowSelection = (
@@ -231,11 +443,23 @@ function useWatcher<T>() {
       selected,
       treeProps,
       ignoreSelectable ? undefined : selectable.value,
-      data.value.indexOf(row)
+      data.value.indexOf(row),
+      rowKey.value
     )
     if (changed) {
+      // lazy mode and non-strict mode, sync lazy children selection status
+      if (treeStates.lazy.value && !treeStates.checkStrictly.value) {
+        const finalSelected = selected ?? isSelected(row)
+        cascadeToLazyChildren(row, finalSelected, rowIndexMap.value)
+        updateSelectionByChildren({
+          emitChange: false,
+          rowIndexMap: rowIndexMap.value,
+        })
+      } else {
+        updateSelectionByChildren({ emitChange: false })
+      }
       const newSelection = (selection.value || []).slice()
-      // 调用 API 修改选中值，不触发 select 事件
+      // API call to modify selection, don't trigger select event
       if (emitChange) {
         instance.emit('select', newSelection, row)
       }
@@ -269,7 +493,8 @@ function useWatcher<T>() {
           value,
           treeProps,
           selectable.value,
-          rowIndex
+          rowIndex,
+          rowKey
         )
       ) {
         selectionChanged = true
@@ -277,38 +502,56 @@ function useWatcher<T>() {
       childrenCount += getChildrenCount(getRowIdentity(row, rowKey))
     })
 
+    const rowIndexMapVal = rowIndexMap.value
+
+    if (treeStates.lazy.value && !treeStates.checkStrictly.value && rowKey) {
+      for (const lazyRows of Object.values(treeStates.lazyTreeNodeMap.value)) {
+        for (const child of lazyRows as T[]) {
+          const childIndex =
+            rowIndexMapVal.get(getRowIdentity(child, rowKey)) ?? 0
+          if (
+            toggleRowStatus(
+              selection.value,
+              child,
+              value,
+              treeProps,
+              selectable.value,
+              childIndex,
+              rowKey
+            )
+          )
+            selectionChanged = true
+          cascadeToLazyChildren(child, value, rowIndexMapVal)
+        }
+      }
+    }
+
+    updateSelectionByChildren({
+      emitChange: false,
+      rowIndexMap: rowIndexMapVal,
+    })
+
     if (selectionChanged) {
       instance.emit(
         'selection-change',
-        selection.value ? selection.value.slice() : []
+        selection.value ? [...selection.value] : []
       )
     }
     instance.emit('select-all', (selection.value || []).slice())
   }
 
-  const updateSelectionByRowKey = () => {
-    data.value.forEach((row) => {
-      const rowId = getRowIdentity(row, rowKey.value)
-      const rowInfo = selectedMap.value![rowId]
-      if (rowInfo) {
-        selection.value[rowInfo.index] = row
-      }
-    })
-  }
-
   const updateAllSelected = () => {
-    // data 为 null 时，解构时的默认值会被忽略
+    // When data is null, default values during destructuring are ignored
     if (data.value?.length === 0) {
       isAllSelected.value = false
       return
     }
 
-    const { childrenColumnName } = instance.store.states
     let rowIndex = 0
     let selectedCount = 0
 
-    const checkSelectedStatus = (data: DefaultRow[]) => {
-      for (const row of data) {
+    const checkSelectedStatus = (rows: T[]) => {
+      for (const row of rows) {
         const isRowSelectable =
           selectable.value && selectable.value.call(null, row, rowIndex)
 
@@ -321,10 +564,8 @@ function useWatcher<T>() {
         }
         rowIndex++
 
-        if (
-          row[childrenColumnName.value]?.length &&
-          !checkSelectedStatus(row[childrenColumnName.value])
-        ) {
+        const children = getRowChildren(row)
+        if (children.length && !checkSelectedStatus(children)) {
           return false
         }
       }
@@ -333,6 +574,12 @@ function useWatcher<T>() {
 
     const isAllSelected_ = checkSelectedStatus(data.value || [])
     isAllSelected.value = selectedCount === 0 ? false : isAllSelected_
+  }
+
+  const getRowIndeterminate = (row: T) => {
+    if (!rowKey.value) return false
+    const id = getRowIdentity(row, rowKey.value)
+    return !!selectionIndeterminate.value[id]
   }
 
   const getChildrenCount = (rowKey: string) => {
@@ -349,20 +596,20 @@ function useWatcher<T>() {
     return count
   }
 
-  // 过滤与排序
-  const updateFilters = (columns, values) => {
-    if (!isArray(columns)) {
-      columns = [columns]
-    }
-    const filters_ = {}
-    columns.forEach((col) => {
+  const updateFilters = (column: TableColumnCtx<T>, values: string[]) => {
+    const filters_: Record<string, string[]> = {}
+    ensureArray(column).forEach((col) => {
       filters.value[col.id] = values
       filters_[col.columnKey || col.id] = values
     })
     return filters_
   }
 
-  const updateSort = (column, prop, order) => {
+  const updateSort = (
+    column: TableColumnCtx<T> | null,
+    prop: string | null,
+    order: TableSortOrder | null
+  ) => {
     if (sortingColumn.value && sortingColumn.value !== column) {
       sortingColumn.value.order = null
     }
@@ -390,27 +637,26 @@ function useWatcher<T>() {
         })
       }
     })
-
     filteredData.value = sourceData
   }
 
   const execSort = () => {
-    data.value = sortData(filteredData.value, {
+    data.value = sortData(filteredData.value ?? [], {
       sortingColumn: sortingColumn.value,
       sortProp: sortProp.value,
       sortOrder: sortOrder.value,
     })
   }
 
-  // 根据 filters 与 sort 去过滤 data
-  const execQuery = (ignore = undefined) => {
-    if (!(ignore && ignore.filter)) {
+  // Filter and sort data based on filters and sort conditions
+  const execQuery = (ignore: { filter: boolean } | undefined = undefined) => {
+    if (!ignore?.filter) {
       execFilter()
     }
     execSort()
   }
 
-  const clearFilter = (columnKeys) => {
+  const clearFilter = (columnKeys?: string[] | string) => {
     const { tableHeaderRef } = instance.refs as TableRefs
     if (!tableHeaderRef) return
     const panels = Object.assign({}, tableHeaderRef.filterPanels)
@@ -498,14 +744,14 @@ function useWatcher<T>() {
     data,
     rowKey,
   })
-  // 适配层，expand-row-keys 在 Expand 与 TreeTable 中都有使用
+  // Adapter layer, expand-row-keys is used in both Expand and TreeTable
   const setExpandRowKeysAdapter = (val: string[]) => {
-    // 这里会触发额外的计算，但为了兼容性，暂时这么做
+    // Triggers extra computation, but kept for compatibility
     setExpandRowKeys(val)
     updateTreeExpandKeys(val)
   }
 
-  // 展开行与 TreeTable 都要使用
+  // Used for both expand rows and TreeTable
   const toggleRowExpansionAdapter = (row: T, expanded?: boolean) => {
     const hasExpandColumn = columns.value.some(({ type }) => type === 'expand')
     if (hasExpandColumn) {
@@ -515,6 +761,53 @@ function useWatcher<T>() {
     }
   }
 
+  watch(
+    () => treeStates.checkStrictly.value,
+    (value) => {
+      if (value) {
+        selectionIndeterminate.value = {}
+        halfSelection = []
+      } else {
+        // Internal sync when switching strict mode, avoid triggering selection-change
+        updateSelectionByChildren({ emitChange: false })
+      }
+      updateAllSelected()
+    }
+  )
+
+  watch(
+    () => treeStates.lazyTreeNodeMap.value,
+    () => {
+      if (
+        !treeStates.lazy.value ||
+        treeStates.checkStrictly.value ||
+        !rowKey.value
+      )
+        return
+      const rowIndexMapVal = rowIndexMap.value
+      const prevLen = selection.value.length
+
+      for (const parentId of Object.keys(treeStates.lazyTreeNodeMap.value)) {
+        if (!selectedMap.value?.[parentId]) continue
+        cascadeToLazyChildren(
+          selectedMap.value[parentId].row,
+          true,
+          rowIndexMapVal
+        )
+      }
+
+      const cascadeChanged = selection.value.length !== prevLen
+      updateSelectionByChildren({
+        emitChange: !cascadeChanged,
+        rowIndexMap: rowIndexMapVal,
+      })
+      updateAllSelected()
+      if (cascadeChanged) {
+        instance.emit('selection-change', [...selection.value])
+      }
+    }
+  )
+
   return {
     assertRowKey,
     updateColumns,
@@ -523,11 +816,13 @@ function useWatcher<T>() {
     clearSelection,
     cleanSelection,
     getSelectionRows,
+    getHalfSelectionRows,
     toggleRowSelection,
     _toggleAllSelection,
-    toggleAllSelection: null,
-    updateSelectionByRowKey,
+    toggleAllSelection: null as (() => void) | null,
     updateAllSelected,
+    updateSelectionByChildren,
+    getRowIndeterminate,
     updateFilters,
     updateCurrentRow,
     updateSort,
@@ -566,9 +861,11 @@ function useWatcher<T>() {
       rightFixedLeafColumnsLength,
       isAllSelected,
       selection,
+      selectionIndeterminate,
       reserveSelection,
       selectOnIndeterminate,
       selectable,
+      rowExpandable,
       filters,
       filteredData,
       sortingColumn,

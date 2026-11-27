@@ -77,6 +77,7 @@
     </template>
   </div>
 </template>
+
 <script lang="ts" setup>
 import { computed, inject, nextTick, onMounted, ref, unref, watch } from 'vue'
 import { debounce } from 'lodash-unified'
@@ -85,8 +86,13 @@ import ElScrollbar from '@element-plus/components/scrollbar'
 import ElIcon from '@element-plus/components/icon'
 import { ArrowDown, ArrowUp } from '@element-plus/icons-vue'
 import { useNamespace } from '@element-plus/hooks'
-import { getStyle, isNumber } from '@element-plus/utils'
-import { timeUnits } from '../constants'
+import { getStyle, isNumber, rAF } from '@element-plus/utils'
+import { CHANGE_EVENT } from '@element-plus/constants'
+import {
+  DEFAULT_FORMATS_TIME,
+  PICKER_BASE_INJECTION_KEY,
+  timeUnits,
+} from '../constants'
 import { buildTimeList } from '../utils'
 import { basicTimeSpinnerProps } from '../props/basic-time-spinner'
 import { getTimeLists } from '../composables/use-time-picker'
@@ -97,9 +103,9 @@ import type { TimeUnit } from '../constants'
 import type { TimeList } from '../utils'
 
 const props = defineProps(basicTimeSpinnerProps)
-const pickerBase = inject('EP_PICKER_BASE') as any
-const { isRange } = pickerBase.props
-const emit = defineEmits(['change', 'select-range', 'set-option'])
+const pickerBase = inject(PICKER_BASE_INJECTION_KEY) as any
+const { isRange, format, saveOnBlur } = pickerBase.props
+const emit = defineEmits([CHANGE_EVENT, 'select-range', 'set-option'])
 
 const ns = useNamespace('time')
 
@@ -111,6 +117,11 @@ const { getHoursList, getMinutesList, getSecondsList } = getTimeLists(
 
 // data
 let isScrolling = false
+const ignoreScroll = {
+  hours: false,
+  minutes: false,
+  seconds: false,
+}
 
 const currentScrollbar = ref<TimeUnit>()
 const listHoursRef = ref<ScrollbarInstance>()
@@ -172,17 +183,26 @@ const getAmPmFlag = (hour: number) => {
 }
 
 const emitSelectRange = (type: TimeUnit) => {
-  let range
-
+  let range = [0, 0]
+  const actualFormat = format || DEFAULT_FORMATS_TIME
+  const hourIndex = actualFormat.indexOf('HH')
+  const minuteIndex = actualFormat.indexOf('mm')
+  const secondIndex = actualFormat.indexOf('ss')
   switch (type) {
     case 'hours':
-      range = [0, 2]
+      if (hourIndex !== -1) {
+        range = [hourIndex, hourIndex + 2]
+      }
       break
     case 'minutes':
-      range = [3, 5]
+      if (minuteIndex !== -1) {
+        range = [minuteIndex, minuteIndex + 2]
+      }
       break
     case 'seconds':
-      range = [6, 8]
+      if (secondIndex !== -1) {
+        range = [secondIndex, secondIndex + 2]
+      }
       break
   }
   const [left, right] = range
@@ -208,6 +228,12 @@ const adjustSpinner = (type: TimeUnit, value: number) => {
   if (props.arrowControl) return
   const scrollbar = unref(listRefsMap[type])
   if (scrollbar && scrollbar.$el) {
+    if (!saveOnBlur) {
+      ignoreScroll[type] = true
+      rAF(() => {
+        ignoreScroll[type] = false
+      })
+    }
     getScrollbarElement(scrollbar.$el).scrollTop = Math.max(
       0,
       value * typeItemHeight(type)
@@ -280,7 +306,7 @@ const modifyDateField = (type: TimeUnit, value: number) => {
       changeTo = props.spinnerDate.hour(hours).minute(minutes).second(value)
       break
   }
-  emit('change', changeTo)
+  emit(CHANGE_EVENT, changeTo)
 }
 
 const handleClick = (
@@ -295,6 +321,7 @@ const handleClick = (
 }
 
 const handleScroll = (type: TimeUnit) => {
+  if (!saveOnBlur && ignoreScroll[type]) return
   const scrollbar = unref(listRefsMap[type])
   if (!scrollbar) return
 

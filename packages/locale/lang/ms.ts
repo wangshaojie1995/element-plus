@@ -11,17 +11,26 @@ export default {
       description:
         'warna semasa ialah {warna}. tekan enter untuk memilih warna baharu.',
       alphaLabel: 'pilih nilai alfa',
+      alphaDescription: 'alpha {alpha}, current color is {color}', // to be translated
+      hueLabel: 'pick hue value', // to be translated
+      hueDescription: 'hue {hue}, current color is {color}', // to be translated
+      svLabel: 'pick saturation and brightness value', // to be translated
+      svDescription:
+        'saturation {saturation}, brightness {brightness}, current color is {color}', // to be translated
+      predefineDescription: 'select {value} as the color', // to be translated
     },
     datepicker: {
       now: 'Sekarang',
       today: 'Hari ini',
-      Batal: 'Batal',
-      clear: 'Jelas',
+      cancel: 'Batal',
+      clear: 'Padam',
       confirm: 'OK',
       dateTablePrompt:
         'Gunakan kekunci anak panah dan masukkan untuk memilih hari dalam bulan tersebut',
       monthTablePrompt:
         'Gunakan kekunci anak panah dan masukkan untuk memilih bulan',
+      quarterTablePrompt:
+        'Gunakan kekunci anak panah dan masukkan untuk memilih suku',
       yearTablePrompt:
         'Gunakan kekunci anak panah dan masukkan untuk memilih tahun',
       selectedDate: 'Tarikh yang dipilih',
@@ -35,7 +44,7 @@ export default {
       nextYear: 'Tahun Depan',
       prevMonth: 'Bulan Sebelumnya',
       nextMonth: 'Bulan Depan',
-      year: 'tahun',
+      year: '',
       month1: 'Januari',
       month2: 'Februari',
       month3: 'Mac',
@@ -48,15 +57,14 @@ export default {
       month10: 'Oktober',
       month11: 'November',
       month12: 'Disember',
-      week: 'minggu',
       weeks: {
-        sun: 'Sun',
-        mon: 'Mon',
-        tue: 'Tue',
-        wed: 'Wed',
-        thu: 'Thu',
-        fri: 'Fri',
-        sat: 'Sat',
+        sun: 'Ahd',
+        mon: 'Isn',
+        tue: 'Sel',
+        wed: 'Rab',
+        thu: 'Kha',
+        fri: 'Jum',
+        sat: 'Sab',
       },
       weeksFull: {
         sun: 'Ahad',
@@ -81,6 +89,9 @@ export default {
         nov: 'Nov',
         dec: 'Dis',
       },
+    },
+    input: {
+      characters: '{count} / {max} aksara',
     },
     inputNumber: {
       decrease: 'mengurangkan',
@@ -127,9 +138,10 @@ export default {
     messagebox: {
       title: 'Mesej',
       confirm: 'OK',
-      Batal: 'Dibatalkan',
+      cancel: 'Cancel', // to be translated
       error: 'Input haram',
       close: 'Tutup dialog ini',
+      Batal: 'Dibatalkan',
     },
     upload: {
       deleteTip: 'tekan padam untuk mengalih keluar',
@@ -148,11 +160,21 @@ export default {
       resetFilter: 'Reset',
       clearFilter: 'Semua',
       sumText: 'Jumlah',
+      selectAllLabel: 'Select all rows', // to be translated
+      selectRowLabel: 'Select this row', // to be translated
+      expandRowLabel: 'Expand this row', // to be translated
+      collapseRowLabel: 'Collapse this row', // to be translated
+      sortLabel: 'Sort by {column}', // to be translated
+      filterLabel: 'Filter by {column}', // to be translated
+    },
+    tag: {
+      close: 'Close this tag', // to be translated
     },
     tour: {
       next: 'Seterusnya',
       previous: 'Sebelumnya',
       finish: 'Selesai',
+      close: 'Close this dialog', // to be translated
     },
     tree: {
       emptyText: 'Tiada Data',
@@ -169,16 +191,21 @@ export default {
       error: 'FAILED',
     },
     pageHeader: {
-      title: 'Belakang',
+      title: 'Kembali',
     },
     popconfirm: {
       confirmButtonText: 'Ya',
+      cancelButtonText: 'No', // to be translated
       BatalButtonText: 'Tidak',
     },
     carousel: {
       leftArrow: 'Anak panah karusel ke kiri',
       rightArrow: 'Anak panah karusel ke kanan',
       indicator: 'Tukar karusel kepada indeks {index}',
+    },
+    inputOTP: {
+      groupLabel: 'OTP Input', // to be translated
+      defaultLabel: 'Please enter OTP character {index}', // to be translated
     },
   },
 }

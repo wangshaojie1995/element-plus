@@ -1,6 +1,7 @@
-import { nextTick, ref } from 'vue'
+import { defineComponent, nextTick, ref } from 'vue'
 import { mount } from '@vue/test-utils'
 import { describe, expect, test, vi } from 'vitest'
+import { CHANGE_EVENT } from '@element-plus/constants'
 import Anchor from '../src/anchor.vue'
 import AnchorLink from '../src/anchor-link.vue'
 
@@ -11,16 +12,19 @@ const getHash = () => `#anchor-link-${id++}`
 describe('Anchor.vue', () => {
   test('snapshot', async () => {
     const hash = getHash()
-    const wrapper = mount({
-      props: ['direction', 'type'],
-      render() {
-        return (
-          <Anchor direction={this.direction} type={this.type}>
-            <AnchorLink href={hash}>{hash}</AnchorLink>
-          </Anchor>
-        )
-      },
-    })
+    const wrapper = mount(
+      defineComponent({
+        // eslint-disable-next-line vue/require-prop-types
+        props: ['direction', 'type'],
+        render() {
+          return (
+            <Anchor direction={this.direction} type={this.type}>
+              <AnchorLink href={hash}>{hash}</AnchorLink>
+            </Anchor>
+          )
+        },
+      })
+    )
 
     wrapper.setProps({
       direction: 'vertical',
@@ -107,7 +111,7 @@ describe('Anchor.vue', () => {
     ))
     wrapper.find(`a[href="${hash1}"]`).trigger('click')
     wrapper.find(`a[href="${hash2}"]`).trigger('click')
-    expect(wrapper.findComponent(Anchor).emitted('change')).toEqual([
+    expect(wrapper.findComponent(Anchor).emitted(CHANGE_EVENT)).toEqual([
       [hash1],
       [hash2],
     ])

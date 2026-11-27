@@ -31,8 +31,9 @@ import { useNamespace } from '@element-plus/hooks'
 import { useFormSize } from '@element-plus/components/form'
 import ElDescriptionsRow from './descriptions-row.vue'
 import { descriptionsKey } from './token'
-import { descriptionProps } from './description'
+import { COMPONENT_NAME } from './constants'
 
+import type { DescriptionProps } from './description'
 import type { IDescriptionsInject } from './descriptions.type'
 import type { DescriptionItemVNode } from './description-item'
 
@@ -40,7 +41,12 @@ defineOptions({
   name: 'ElDescriptions',
 })
 
-const props = defineProps(descriptionProps)
+const props = withDefaults(defineProps<DescriptionProps>(), {
+  column: 3,
+  direction: 'horizontal',
+  title: '',
+  extra: '',
+})
 
 const ns = useNamespace('descriptions')
 
@@ -76,7 +82,7 @@ const getRows = () => {
 
   const children = flattedChildren(slots.default()).filter(
     (node): node is DescriptionItemVNode =>
-      (node as any)?.type?.name === 'ElDescriptionsItem'
+      (node as any)?.type?.name === COMPONENT_NAME
   )
   const rows: DescriptionItemVNode[][] = []
   let temp: DescriptionItemVNode[] = []

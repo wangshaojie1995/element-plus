@@ -28,6 +28,17 @@
         </div>
       </template>
     </el-date-picker>
+    <el-date-picker
+      v-model="quarter"
+      type="quarter"
+      placeholder="Pick a quarter"
+    >
+      <template #default="cell">
+        <div class="el-date-table-cell" :class="{ current: cell.isCurrent }">
+          <span class="el-date-table-cell__text">Q{{ +cell.text + 1 }}</span>
+        </div>
+      </template>
+    </el-date-picker>
   </div>
 </template>
 
@@ -37,6 +48,7 @@ import { ref } from 'vue'
 const value = ref('2021-10-29')
 const month = ref('')
 const year = ref('')
+const quarter = ref('')
 const holidays = [
   '2021-10-01',
   '2021-10-02',
@@ -55,7 +67,12 @@ const isHoliday = ({ dayjs }) => {
 <style scoped>
 .demo-date-picker {
   display: flex;
-  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.demo-date-picker > * {
+  margin: 0 !important;
 }
 
 .cell {
@@ -90,5 +107,11 @@ const isHoliday = ({ dayjs }) => {
   bottom: 0px;
   left: 50%;
   transform: translateX(-50%);
+}
+
+@media screen and (max-width: 768px) {
+  .demo-date-picker {
+    gap: 1.5rem;
+  }
 }
 </style>

@@ -1,4 +1,5 @@
 import { placements } from '@popperjs/core'
+import { scrollbarEmits } from '@element-plus/components/scrollbar'
 import {
   useAriaProps,
   useEmptyValuesProps,
@@ -8,13 +9,40 @@ import { buildProps, definePropType, iconPropType } from '@element-plus/utils'
 import { useTooltipContentProps } from '@element-plus/components/tooltip'
 import { ArrowDown, CircleClose } from '@element-plus/icons-vue'
 import { tagProps } from '@element-plus/components/tag'
+import { CHANGE_EVENT, UPDATE_MODEL_EVENT } from '@element-plus/constants'
+import { defaultProps } from '@element-plus/components/select-v2/src/useProps'
+
+import type { ClassValue, EmitFn } from '@element-plus/utils'
+import type { ExtractPropTypes, ExtractPublicPropTypes, StyleValue } from 'vue'
+import type Select from './select.vue'
 import type {
   Options,
   Placement,
   PopperEffect,
 } from '@element-plus/components/popper'
+import type { OptionValue } from './type'
+import type { Props } from '@element-plus/components/select-v2/src/useProps'
 
-export const SelectProps = buildProps({
+/**
+ * @description Tag tooltip configuration interface
+ */
+export interface TagTooltipProps {
+  appendTo?: string | HTMLElement
+  placement?: Placement
+  fallbackPlacements?: Placement[]
+  effect?: PopperEffect
+  popperClass?: ClassValue
+  popperStyle?: StyleValue
+  transition?: string
+  teleported?: boolean
+  popperOptions?: Partial<Options>
+  showAfter?: number
+  hideAfter?: number
+  autoClose?: number
+  offset?: number
+}
+
+export const selectProps = buildProps({
   /**
    * @description the name attribute of select input
    */
@@ -27,7 +55,13 @@ export const SelectProps = buildProps({
    * @description binding value
    */
   modelValue: {
-    type: [Array, String, Number, Boolean, Object],
+    type: definePropType<OptionValue | OptionValue[] | null>([
+      Array,
+      String,
+      Number,
+      Boolean,
+      Object,
+    ]),
     default: undefined,
   },
   /**
@@ -55,7 +89,10 @@ export const SelectProps = buildProps({
   /**
    * @description whether Select is disabled
    */
-  disabled: Boolean,
+  disabled: {
+    type: Boolean,
+    default: undefined,
+  },
   /**
    * @description whether select can be cleared
    */
@@ -76,20 +113,34 @@ export const SelectProps = buildProps({
    * @description custom class name for Select's dropdown
    */
   popperClass: {
-    type: String,
+    type: definePropType<ClassValue>([String, Array, Object, Boolean]),
     default: '',
+  },
+  /**
+   * @description custom style for Select's dropdown
+   */
+  popperStyle: {
+    type: definePropType<StyleValue>([String, Array, Object, Boolean]),
+    default: undefined,
   },
   /**
    * @description [popper.js](https://popper.js.org/docs/v2/) parameters
    */
   popperOptions: {
     type: definePropType<Partial<Options>>(Object),
-    default: () => ({} as Partial<Options>),
+    default: () => ({}) as Partial<Options>,
   },
   /**
    * @description whether options are loaded from server
    */
   remote: Boolean,
+  /**
+   * @description debounce delay during remote search, in milliseconds
+   */
+  debounce: {
+    type: Number,
+    default: 300,
+  },
   /**
    * @description displayed text while loading data from server, default is 'Loading'
    */
@@ -103,13 +154,17 @@ export const SelectProps = buildProps({
    */
   noDataText: String,
   /**
-   * @description custom remote search method
+   * @description function that gets called when the input value changes. Its parameter is the current input value. To use this, `filterable` must be true
    */
-  remoteMethod: Function,
+  remoteMethod: {
+    type: definePropType<(query: string) => void>(Function),
+  },
   /**
-   * @description custom filter method
+   * @description custom filter method, the first parameter is the current input value. To use this, `filterable` must be true
    */
-  filterMethod: Function,
+  filterMethod: {
+    type: definePropType<(query: string) => void>(Function),
+  },
   /**
    * @description whether multiple-select is activated
    */
@@ -154,6 +209,13 @@ export const SelectProps = buildProps({
    */
   collapseTagsTooltip: Boolean,
   /**
+   * @description configuration object for the collapse-tags tooltip. To use this, `collapse-tags` and `collapse-tags-tooltip` must be true
+   */
+  tagTooltip: {
+    type: definePropType<TagTooltipProps>(Object),
+    default: () => ({}),
+  },
+  /**
    * @description the max tags number to be shown. To use this, `collapse-tags` must be true
    */
   maxCollapseTags: {
@@ -192,7 +254,7 @@ export const SelectProps = buildProps({
   /**
    * @description tag type
    */
-  // eslint-disable-next-line vue/require-prop-types
+
   tagType: { ...tagProps.type, default: 'info' },
   /**
    * @description tag effect
@@ -248,7 +310,34 @@ export const SelectProps = buildProps({
   /**
    * @description which element the selection dropdown appends to
    */
-  appendTo: String,
+  appendTo: useTooltipContentProps.appendTo,
+  options: {
+    type: definePropType<Record<string, any>[]>(Array),
+  },
+  props: {
+    type: definePropType<SelectOptionProps>(Object),
+    default: () => defaultProps,
+  },
   ...useEmptyValuesProps,
   ...useAriaProps(['ariaLabel']),
 })
+/* eslint-disable @typescript-eslint/no-unused-vars */
+export const selectEmits = {
+  // todo: use generics to eliminate any
+  [UPDATE_MODEL_EVENT]: (val: SelectProps['modelValue'] | any) => true,
+  [CHANGE_EVENT]: (val: SelectProps['modelValue'] | any) => true,
+  'popup-scroll': scrollbarEmits.scroll,
+  'end-reached': scrollbarEmits['end-reached'],
+  'remove-tag': (val: unknown) => true,
+  'visible-change': (visible: boolean) => true,
+  focus: (evt: FocusEvent) => evt instanceof FocusEvent,
+  blur: (evt: FocusEvent) => evt instanceof FocusEvent,
+  clear: () => true,
+}
+/* eslint-enable @typescript-eslint/no-unused-vars */
+
+export type SelectProps = ExtractPropTypes<typeof selectProps>
+export type SelectPropsPublic = ExtractPublicPropTypes<typeof selectProps>
+export type SelectEmits = EmitFn<typeof selectEmits>
+export type SelectInstance = InstanceType<typeof Select> & unknown
+export type SelectOptionProps = Props

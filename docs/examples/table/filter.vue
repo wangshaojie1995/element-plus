@@ -19,6 +19,7 @@
     <el-table-column prop="name" label="Name" width="180" />
     <el-table-column prop="address" label="Address" :formatter="formatter" />
 
+    <!-- @vue-generic {User} -->
     <el-table-column
       prop="tag"
       label="Tag"
@@ -43,6 +44,7 @@
 
 <script lang="ts" setup>
 import { ref } from 'vue'
+
 import type { TableColumnCtx, TableInstance } from 'element-plus'
 
 interface User {

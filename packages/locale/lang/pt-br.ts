@@ -2,11 +2,22 @@ export default {
   name: 'pt-br',
   el: {
     breadcrumb: {
-      label: 'Breadcrumb', // to be translated
+      label: 'Trilha de navegação',
     },
     colorpicker: {
       confirm: 'Confirmar',
       clear: 'Limpar',
+      defaultLabel: 'seletor de cor',
+      description:
+        'a cor atual é {color}. Pressione Enter para selecionar uma nova cor.',
+      alphaLabel: 'escolher o valor alfa',
+      alphaDescription: 'alfa {alpha}, a cor atual é {color}',
+      hueLabel: 'escolher o valor de matiz',
+      hueDescription: 'matiz {hue}, a cor atual é {color}',
+      svLabel: 'escolher os valores de saturação e brilho',
+      svDescription:
+        'saturação {saturation}, brilho {brightness}, a cor atual é {color}',
+      predefineDescription: 'selecionar {value} como cor',
     },
     datepicker: {
       now: 'Agora',
@@ -14,6 +25,13 @@ export default {
       cancel: 'Cancelar',
       clear: 'Limpar',
       confirm: 'Confirmar',
+      dateTablePrompt:
+        'Use as teclas de seta e Enter para selecionar o dia do mês',
+      monthTablePrompt: 'Use as teclas de seta e Enter para selecionar o mês',
+      quarterTablePrompt:
+        'Use as teclas de seta e Enter para selecionar o trimestre',
+      yearTablePrompt: 'Use as teclas de seta e Enter para selecionar o ano',
+      selectedDate: 'Data selecionada',
       selectDate: 'Selecione a data',
       selectTime: 'Selecione a hora',
       startDate: 'Data inicial',
@@ -37,7 +55,6 @@ export default {
       month10: 'Outubro',
       month11: 'Novembro',
       month12: 'Dezembro',
-      // week: 'semana',
       weeks: {
         sun: 'Dom',
         mon: 'Seg',
@@ -46,6 +63,15 @@ export default {
         thu: 'Qui',
         fri: 'Sex',
         sat: 'Sab',
+      },
+      weeksFull: {
+        sun: 'Domingo',
+        mon: 'Segunda-feira',
+        tue: 'Terça-feira',
+        wed: 'Quarta-feira',
+        thu: 'Quinta-feira',
+        fri: 'Sexta-feira',
+        sat: 'Sábado',
       },
       months: {
         jan: 'Jan',
@@ -62,6 +88,13 @@ export default {
         dec: 'Dez',
       },
     },
+    input: {
+      characters: '{count} / {max} caracteres',
+    },
+    inputNumber: {
+      decrease: 'diminuir número',
+      increase: 'aumentar número',
+    },
     select: {
       loading: 'Carregando',
       noMatch: 'Sem resultados',
@@ -70,6 +103,9 @@ export default {
     },
     mention: {
       loading: 'Carregando',
+    },
+    dropdown: {
+      toggleDropdown: 'Mostrar ou ocultar menu suspenso',
     },
     cascader: {
       noMatch: 'Sem resultados',
@@ -82,18 +118,27 @@ export default {
       pagesize: '/página',
       total: 'Total {total}',
       pageClassifier: '',
-      page: 'Page', // to be translated
-      prev: 'Go to previous page', // to be translated
-      next: 'Go to next page', // to be translated
-      currentPage: 'page {pager}', // to be translated
-      prevPages: 'Previous {pager} pages', // to be translated
-      nextPages: 'Next {pager} pages', // to be translated
+      page: 'Página',
+      prev: 'Ir para a página anterior',
+      next: 'Ir para a próxima página',
+      currentPage: 'página {pager}',
+      prevPages: '{pager} páginas anteriores',
+      nextPages: 'Próximas {pager} páginas',
+      deprecationWarning:
+        'Foram detectados usos obsoletos, consulte a documentação do el-pagination para mais detalhes',
+    },
+    dialog: {
+      close: 'Fechar esta caixa de diálogo',
+    },
+    drawer: {
+      close: 'Fechar esta caixa de diálogo',
     },
     messagebox: {
       title: 'Mensagem',
       confirm: 'Confirmar',
       cancel: 'Cancelar',
       error: 'Erro!',
+      close: 'Fechar esta caixa de diálogo',
     },
     upload: {
       deleteTip: 'aperte delete para apagar',
@@ -101,17 +146,32 @@ export default {
       preview: 'Pré-visualizar',
       continue: 'Continuar',
     },
+    slider: {
+      defaultLabel: 'controle deslizante entre {min} e {max}',
+      defaultRangeStartLabel: 'escolher o valor inicial',
+      defaultRangeEndLabel: 'escolher o valor final',
+    },
     table: {
       emptyText: 'Sem dados',
       confirmFilter: 'Confirmar',
       resetFilter: 'Limpar',
       clearFilter: 'Todos',
       sumText: 'Total',
+      selectAllLabel: 'Selecionar todas as linhas',
+      selectRowLabel: 'Selecionar esta linha',
+      expandRowLabel: 'Expandir esta linha',
+      collapseRowLabel: 'Recolher esta linha',
+      sortLabel: 'Ordenar por {column}',
+      filterLabel: 'Filtrar por {column}',
+    },
+    tag: {
+      close: 'Fechar esta etiqueta',
     },
     tour: {
       next: 'Próximo',
       previous: 'Anterior',
       finish: 'Finalizar',
+      close: 'Fechar esta caixa de diálogo',
     },
     tree: {
       emptyText: 'Sem dados',
@@ -135,9 +195,13 @@ export default {
       cancelButtonText: 'Não',
     },
     carousel: {
-      leftArrow: 'Carousel arrow left', // to be translated
-      rightArrow: 'Carousel arrow right', // to be translated
-      indicator: 'Carousel switch to index {index}', // to be translated
+      leftArrow: 'Seta esquerda do carrossel',
+      rightArrow: 'Seta direita do carrossel',
+      indicator: 'Mudar o carrossel para o índice {index}',
+    },
+    inputOTP: {
+      groupLabel: 'Campo de código OTP',
+      defaultLabel: 'Digite o caractere {index} do código OTP',
     },
   },
 }

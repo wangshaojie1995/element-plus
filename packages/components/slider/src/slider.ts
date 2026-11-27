@@ -11,8 +11,9 @@ import {
   UPDATE_MODEL_EVENT,
 } from '@element-plus/constants'
 import { useAriaProps, useSizeProp } from '@element-plus/hooks'
-import type { Arrayable } from '@element-plus/utils'
-import type { ExtractPropTypes } from 'vue'
+
+import type { Arrayable, ClassValue } from '@element-plus/utils'
+import type { ExtractPropTypes, ExtractPublicPropTypes } from 'vue'
 import type { SliderMarkerProps } from './marker'
 import type Slider from './slider.vue'
 
@@ -53,14 +54,14 @@ export const sliderProps = buildProps({
     default: 100,
   },
   /**
-   * @description step size
+   * @description step size, can be a number or `'mark'` to restrict values to marks. When set to `'mark'`, the `marks` attribute must be set
    */
   step: {
-    type: Number,
+    type: definePropType<number | 'mark'>([Number, String]),
     default: 1,
   },
   /**
-   * @description whether to display an input box, works when `range` is false
+   * @description whether to display an input box, works when `range` is false and `step` is not `'mark'`
    */
   showInput: Boolean,
   /**
@@ -99,7 +100,10 @@ export const sliderProps = buildProps({
   /**
    * @description whether Slider is disabled
    */
-  disabled: Boolean,
+  disabled: {
+    type: Boolean,
+    default: undefined,
+  },
   /**
    * @description whether to select a range
    */
@@ -112,13 +116,6 @@ export const sliderProps = buildProps({
    * @description slider height, required in vertical mode
    */
   height: String,
-  /**
-   * @description debounce delay when typing, in milliseconds, works when `show-input` is true
-   */
-  debounce: {
-    type: Number,
-    default: 300,
-  },
   /**
    * @description when `range` is true, screen reader label for the start of the range
    */
@@ -144,7 +141,7 @@ export const sliderProps = buildProps({
    * @description custom class name for the tooltip
    */
   tooltipClass: {
-    type: String,
+    type: definePropType<ClassValue>([String, Array, Object, Boolean]),
     default: undefined,
   },
   /**
@@ -168,9 +165,17 @@ export const sliderProps = buildProps({
     type: Boolean,
     default: true,
   },
+  /**
+   * @description when slider tooltip inactive and `persistent` is `false` , popconfirm will be destroyed. `persistent` always be `false` when `show-tooltip ` is `false`
+   */
+  persistent: {
+    type: Boolean,
+    default: true,
+  },
   ...useAriaProps(['ariaLabel']),
 } as const)
 export type SliderProps = ExtractPropTypes<typeof sliderProps>
+export type SliderPropsPublic = ExtractPublicPropTypes<typeof sliderProps>
 
 const isValidValue = (value: Arrayable<number>) =>
   isNumber(value) || (isArray(value) && value.every(isNumber))
@@ -181,4 +186,4 @@ export const sliderEmits = {
 }
 export type SliderEmits = typeof sliderEmits
 
-export type SliderInstance = InstanceType<typeof Slider>
+export type SliderInstance = InstanceType<typeof Slider> & unknown

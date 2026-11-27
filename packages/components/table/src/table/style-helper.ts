@@ -1,7 +1,7 @@
-// @ts-nocheck
 import {
   computed,
   nextTick,
+  onBeforeUnmount,
   onMounted,
   ref,
   unref,
@@ -11,19 +11,19 @@ import {
 import { useEventListener, useResizeObserver } from '@vueuse/core'
 import { useFormSize } from '@element-plus/components/form'
 
-import type { Table, TableProps } from './defaults'
+import type { DefaultRow, RenderExpanded, Table, TableProps } from './defaults'
 import type { Store } from '../store'
 import type TableLayout from '../table-layout'
 import type { TableColumnCtx } from '../table-column/defaults'
 
-function useStyle<T>(
+function useStyle<T extends DefaultRow>(
   props: TableProps<T>,
   layout: TableLayout<T>,
   store: Store<T>,
   table: Table<T>
 ) {
   const isHidden = ref(false)
-  const renderExpanded = ref(null)
+  const renderExpanded = ref<RenderExpanded<T> | null>(null)
   const resizeProxyVisible = ref(false)
   const setDragVisible = (visible: boolean) => {
     resizeProxyVisible.value = visible
@@ -48,13 +48,25 @@ function useStyle<T>(
   const headerScrollHeight = ref(0)
   const footerScrollHeight = ref(0)
   const appendScrollHeight = ref(0)
+  let isUnmounted = false
+  let layoutFrame: number | null = null
+  let syncFrame: number | null = null
+  const stopFns: Array<() => void> = []
 
-  watchEffect(() => {
-    layout.setHeight(props.height)
-  })
-  watchEffect(() => {
-    layout.setMaxHeight(props.maxHeight)
-  })
+  watch(
+    () => props.height,
+    (value) => {
+      layout.setHeight(value ?? null)
+    },
+    { immediate: true }
+  )
+  watch(
+    () => props.maxHeight,
+    (value) => {
+      layout.setMaxHeight(value ?? null)
+    },
+    { immediate: true }
+  )
   watch(
     () => [props.currentRowKey, store.states.rowKey],
     ([currentRowKey, rowKey]) => {
@@ -86,7 +98,7 @@ function useStyle<T>(
     if (table.hoverState) table.hoverState = null
   }
 
-  const handleHeaderFooterMousewheel = (event, data) => {
+  const handleHeaderFooterMousewheel = (_event: WheelEvent, data: any) => {
     const { pixelX, pixelY } = data
     if (Math.abs(pixelX) >= Math.abs(pixelY)) {
       table.refs.bodyWrapper.scrollLeft += data.pixelX / 5
@@ -109,17 +121,31 @@ function useStyle<T>(
   })
 
   const doLayout = () => {
+    if (isUnmounted) return
     if (shouldUpdateHeight.value) {
       layout.updateElsHeight()
     }
     layout.updateColumnsWidth()
-    requestAnimationFrame(syncPosition)
+
+    // When the test case is running, the context environment simulated by jsdom may have been destroyed,
+    // and window.requestAnimationFrame does not exist at this time.
+    if (typeof window === 'undefined') return
+    if (syncFrame === null) {
+      syncFrame = requestAnimationFrame(() => {
+        syncFrame = null
+        if (!isUnmounted) syncPosition()
+      })
+    }
   }
   onMounted(async () => {
     await nextTick()
+    if (isUnmounted) return
     store.updateColumns()
     bindEvents()
-    requestAnimationFrame(doLayout)
+    layoutFrame = requestAnimationFrame(() => {
+      layoutFrame = null
+      doLayout()
+    })
 
     const el: HTMLElement = table.vnode.el as HTMLElement
     const tableHeader: HTMLElement = table.refs.headerWrapper
@@ -190,31 +216,38 @@ function useStyle<T>(
   }
 
   const bindEvents = () => {
-    if (!table.refs.scrollBarRef) return
+    if (isUnmounted || !table.refs.scrollBarRef) return
     if (table.refs.scrollBarRef.wrapRef) {
-      useEventListener(
-        table.refs.scrollBarRef.wrapRef,
-        'scroll',
-        syncPosition,
-        {
-          passive: true,
-        }
+      stopFns.push(
+        useEventListener(
+          table.refs.scrollBarRef.wrapRef,
+          'scroll',
+          syncPosition,
+          {
+            passive: true,
+          }
+        )
       )
     }
     if (props.fit) {
-      useResizeObserver(table.vnode.el as HTMLElement, resizeListener)
+      const { stop } = useResizeObserver(
+        table.vnode.el as HTMLElement,
+        resizeListener
+      )
+      stopFns.push(stop)
     } else {
-      useEventListener(window, 'resize', resizeListener)
+      stopFns.push(useEventListener(window, 'resize', resizeListener))
     }
 
-    useResizeObserver(table.refs.bodyWrapper, () => {
+    const { stop } = useResizeObserver(table.refs.tableInnerWrapper, () => {
       resizeListener()
       table.refs?.scrollBarRef?.update()
     })
+    stopFns.push(stop)
   }
   const resizeListener = () => {
     const el = table.vnode.el
-    if (!table.$ready || !el) return
+    if (isUnmounted || !table.$ready || !el) return
 
     let shouldUpdateLayout = false
     const {
@@ -270,11 +303,11 @@ function useStyle<T>(
 
   const tableLayout = computed(() => {
     if (props.maxHeight) return 'fixed'
-    return props.tableLayout
+    return props.tableLayout!
   })
 
   const emptyBlockStyle = computed(() => {
-    if (props.data && props.data.length) return null
+    if (props.data && props.data.length) return
     let height = '100%'
     if (props.height && bodyScrollHeight.value) {
       height = `${bodyScrollHeight.value}px`
@@ -284,6 +317,19 @@ function useStyle<T>(
       width: width ? `${width}px` : '',
       height,
     }
+  })
+
+  onBeforeUnmount(() => {
+    isUnmounted = true
+    if (layoutFrame !== null) {
+      cancelAnimationFrame(layoutFrame)
+      layoutFrame = null
+    }
+    if (syncFrame !== null) {
+      cancelAnimationFrame(syncFrame)
+      syncFrame = null
+    }
+    stopFns.forEach((stop) => stop())
   })
 
   const scrollbarStyle = computed(() => {
@@ -296,7 +342,7 @@ function useStyle<T>(
       if (!Number.isNaN(Number(props.maxHeight))) {
         return {
           maxHeight: `${
-            props.maxHeight -
+            +props.maxHeight -
             headerScrollHeight.value -
             footerScrollHeight.value
           }px`,
@@ -313,28 +359,6 @@ function useStyle<T>(
     return {}
   })
 
-  /**
-   * fix layout
-   */
-  const handleFixedMousewheel = (event, data) => {
-    const bodyWrapper = table.refs.bodyWrapper
-    if (Math.abs(data.spinY) > 0) {
-      const currentScrollTop = bodyWrapper.scrollTop
-      if (data.pixelY < 0 && currentScrollTop !== 0) {
-        event.preventDefault()
-      }
-      if (
-        data.pixelY > 0 &&
-        bodyWrapper.scrollHeight - bodyWrapper.clientHeight > currentScrollTop
-      ) {
-        event.preventDefault()
-      }
-      bodyWrapper.scrollTop += Math.ceil(data.pixelY / 5)
-    } else {
-      bodyWrapper.scrollLeft += Math.ceil(data.pixelX / 5)
-    }
-  }
-
   return {
     isHidden,
     renderExpanded,
@@ -344,7 +368,6 @@ function useStyle<T>(
     handleHeaderFooterMousewheel,
     tableSize,
     emptyBlockStyle,
-    handleFixedMousewheel,
     resizeProxyVisible,
     bodyWidth,
     resizeState,

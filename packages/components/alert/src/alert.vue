@@ -6,10 +6,12 @@
       role="alert"
     >
       <el-icon
-        v-if="showIcon && iconComponent"
-        :class="[ns.e('icon'), { [ns.is('big')]: hasDesc }]"
+        v-if="showIcon && ($slots.icon || iconComponent)"
+        :class="[ns.e('icon'), ns.is('big', hasDesc)]"
       >
-        <component :is="iconComponent" />
+        <slot name="icon">
+          <component :is="iconComponent" />
+        </slot>
       </el-icon>
 
       <div :class="ns.e('content')">
@@ -40,12 +42,20 @@
     </div>
   </transition>
 </template>
+
 <script lang="ts" setup>
 import { computed, ref, useSlots } from 'vue'
 import { ElIcon } from '@element-plus/components/icon'
-import { TypeComponents, TypeComponentsMap } from '@element-plus/utils'
+import {
+  TypeComponents,
+  TypeComponentsMap,
+  flattedChildren,
+  isComment,
+} from '@element-plus/utils'
 import { useNamespace } from '@element-plus/hooks'
-import { alertEmits, alertProps } from './alert'
+import { alertEmits } from './alert'
+
+import type { AlertProps } from './alert'
 
 const { Close } = TypeComponents
 
@@ -53,7 +63,14 @@ defineOptions({
   name: 'ElAlert',
 })
 
-const props = defineProps(alertProps)
+const props = withDefaults(defineProps<AlertProps>(), {
+  title: '',
+  description: '',
+  type: 'info',
+  closable: true,
+  closeText: '',
+  effect: 'light',
+})
 const emit = defineEmits(alertEmits)
 const slots = useSlots()
 
@@ -63,7 +80,14 @@ const visible = ref(true)
 
 const iconComponent = computed(() => TypeComponentsMap[props.type])
 
-const hasDesc = computed(() => !!(props.description || slots.default))
+const hasDesc = computed(() => {
+  if (props.description) return true
+  const slotContent = slots.default?.()
+  if (!slotContent) return false
+
+  const children = flattedChildren(slotContent)
+  return children.some((child) => !isComment(child))
+})
 
 const close = (evt: MouseEvent) => {
   visible.value = false

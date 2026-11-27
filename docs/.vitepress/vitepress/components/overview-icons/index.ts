@@ -13,8 +13,10 @@ import OvConfigProvider from './ov-config-provider.vue'
 import OvInput from './ov-input.vue'
 import OvCascader from './ov-cascader.vue'
 import OvCheckbox from './ov-checkbox.vue'
+import OvColorPickerPanel from './ov-color-picker-panel.vue'
 import OvColorPicker from './ov-color-picker.vue'
 import OvDatePicker from './ov-date-picker.vue'
+import OvDatePickerPanel from './ov-date-picker-panel.vue'
 import OvDatetimePicker from './ov-datetime-picker.vue'
 import OvForm from './ov-form.vue'
 import OvInputNumber from './ov-input-number.vue'
@@ -73,6 +75,8 @@ import OvDivider from './ov-divider.vue'
 import OvWatermark from './ov-watermark.vue'
 import OvMention from './ov-mention.vue'
 import OvInputTag from './ov-input-tag.vue'
+import OvSplitter from './ov-splitter.vue'
+import OvInputOtp from './ov-input-otp.vue'
 
 export default {
   button: OvButton,
@@ -90,13 +94,16 @@ export default {
   autocomplete: OvInput,
   cascader: OvCascader,
   checkbox: OvCheckbox,
+  'color-picker-panel': OvColorPickerPanel,
   'color-picker': OvColorPicker,
   'date-picker': OvDatePicker,
+  'date-picker-panel': OvDatePickerPanel,
   'datetime-picker': OvDatetimePicker,
   form: OvForm,
   input: OvInput,
   'input-number': OvInputNumber,
   'input-tag': OvInputTag,
+  'input-otp': OvInputOtp,
   radio: OvRadio,
   rate: OvRate,
   select: OvSelect,
@@ -139,6 +146,7 @@ export default {
   menu: OvMenu,
   'page-header': OvPageHeader,
   steps: OvSteps,
+  splitter: OvSplitter,
   tabs: OvTabs,
   alert: OvAlert,
   dialog: OvDialog,

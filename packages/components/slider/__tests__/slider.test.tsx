@@ -2,9 +2,40 @@ import { h, nextTick, onMounted, ref } from 'vue'
 import { mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { EVENT_CODE } from '@element-plus/constants'
-import { ElFormItem } from '@element-plus/components/form'
+import { ElForm, ElFormItem } from '@element-plus/components/form'
 import Slider from '../src/slider.vue'
+
 import type { SliderProps } from '../src/slider'
+
+const mockBoundingClientRect = (el: Element, rect: Partial<DOMRect> = {}) => {
+  const defaultRect: DOMRect = {
+    x: 0,
+    y: 0,
+    width: 100,
+    height: 100,
+    top: 0,
+    left: 0,
+    bottom: 0,
+    right: 0,
+    toJSON: () => {},
+  }
+
+  return vi
+    .spyOn(el, 'getBoundingClientRect')
+    .mockReturnValue(Object.assign(defaultRect, rect))
+}
+
+const observeUnhandledRejections = () => {
+  const reasons: unknown[] = []
+  const listener = (reason: unknown) => {
+    reasons.push(reason)
+  }
+  process.on('unhandledRejection', listener)
+  return {
+    reasons,
+    release: () => process.off('unhandledRejection', listener),
+  }
+}
 
 vi.mock('lodash-unified', async () => {
   return {
@@ -120,11 +151,10 @@ describe('Slider', () => {
 
       const slider = wrapper.findComponent({ name: 'ElSliderButton' })
 
-      vi.spyOn(
+      const mockRect = mockBoundingClientRect(
         wrapper.find('.el-slider__runway').element,
-        'clientWidth',
-        'get'
-      ).mockImplementation(() => 200)
+        { width: 200 }
+      )
       slider.trigger('mousedown', { clientX: 0 })
 
       const mousemove = new MouseEvent('mousemove', {
@@ -145,6 +175,7 @@ describe('Slider', () => {
 
       await nextTick()
       expect(value.value === 50).toBeTruthy()
+      mockRect.mockRestore()
     })
 
     it('vertical', async () => {
@@ -162,11 +193,10 @@ describe('Slider', () => {
       )
 
       const slider = wrapper.findComponent({ name: 'ElSliderButton' })
-      vi.spyOn(
+      const mockRect = mockBoundingClientRect(
         wrapper.find('.el-slider__runway').element,
-        'clientHeight',
-        'get'
-      ).mockImplementation(() => 200)
+        { height: 200 }
+      )
       slider.trigger('mousedown', { clientY: 0 })
 
       const mousemove = new MouseEvent('mousemove', {
@@ -186,6 +216,237 @@ describe('Slider', () => {
       window.dispatchEvent(mouseup)
       await nextTick()
       expect(value.value).toBe(50)
+      mockRect.mockRestore()
+    })
+
+    it('should release the window drag listeners when unmounted mid-drag', async () => {
+      vi.useRealTimers()
+      const value = ref(0)
+      const wrapper = mount(
+        () => (
+          <div style="width: 200px;">
+            <Slider v-model={value.value} />
+          </div>
+        ),
+        {
+          attachTo: document.body,
+        }
+      )
+
+      const slider = wrapper.findComponent({ name: 'ElSliderButton' })
+
+      const mockRect = mockBoundingClientRect(
+        wrapper.find('.el-slider__runway').element,
+        { width: 200 }
+      )
+
+      const removeListener = vi.spyOn(window, 'removeEventListener')
+
+      // The drag starts and the slider is removed from the tree while the mouse
+      // button is still down, so no `mouseup` ever releases the listeners.
+      slider.trigger('mousedown', { clientX: 0 })
+      await nextTick()
+      wrapper.unmount()
+
+      expect(removeListener.mock.calls.map(([type]) => type)).toEqual(
+        expect.arrayContaining([
+          'mousemove',
+          'mouseup',
+          'touchmove',
+          'touchend',
+          'contextmenu',
+        ])
+      )
+
+      removeListener.mockRestore()
+      mockRect.mockRestore()
+    })
+
+    it('should release the dragging state when the dragged button unmounts mid-drag', async () => {
+      vi.useRealTimers()
+      const value = ref<number | number[]>([10, 50])
+      const range = ref(true)
+      const wrapper = mount(
+        () => (
+          <div style="width: 200px;">
+            <Slider v-model={value.value} range={range.value} />
+          </div>
+        ),
+        {
+          attachTo: document.body,
+        }
+      )
+
+      const mockRect = mockBoundingClientRect(
+        wrapper.find('.el-slider__runway').element,
+        { width: 200, left: 0 }
+      )
+
+      const buttons = wrapper.findAllComponents({ name: 'ElSliderButton' })
+      await buttons[1].trigger('mousedown', { clientX: 100 })
+
+      // switching range off unmounts the second button mid-drag while the
+      // slider itself stays alive
+      value.value = 10
+      range.value = false
+      await nextTick()
+
+      // a stuck `dragging` state would make the runway ignore this click
+      const slider = wrapper.getComponent({ name: 'ElSlider' })
+      slider.vm.onSliderClick(new MouseEvent('mousedown', { clientX: 40 }))
+      await nextTick()
+      expect(value.value).toBe(20)
+
+      mockRect.mockRestore()
+    })
+
+    it('should not throw when unmounted while a drag move is in flight', async () => {
+      vi.useRealTimers()
+      const visible = ref(true)
+      const value = ref<SliderProps['modelValue']>(0)
+      const wrapper = mount(
+        () => (
+          <div style="width: 200px;">
+            {visible.value && (
+              <Slider
+                modelValue={value.value}
+                {...{
+                  // hiding the slider from the update handler unmounts it
+                  // while `setPosition` is awaiting its nextTick continuation
+                  'onUpdate:modelValue': (val: SliderProps['modelValue']) => {
+                    value.value = val
+                    visible.value = false
+                  },
+                }}
+              />
+            )}
+          </div>
+        ),
+        {
+          attachTo: document.body,
+        }
+      )
+
+      const slider = wrapper.findComponent({ name: 'ElSliderButton' })
+      const mockRect = mockBoundingClientRect(
+        wrapper.find('.el-slider__runway').element,
+        { width: 200, left: 0 }
+      )
+
+      const unhandled = observeUnhandledRejections()
+
+      await slider.trigger('mousedown', { clientX: 0 })
+      window.dispatchEvent(new MouseEvent('mousemove', { clientX: 100 }))
+      await nextTick()
+      // let the post-unmount `setPosition` continuation settle
+      await new Promise((resolve) => setTimeout(resolve, 10))
+
+      expect(value.value).toBe(50)
+      expect(
+        wrapper.findComponent({ name: 'ElSliderButton' }).exists()
+      ).toBeFalsy()
+      unhandled.release()
+      expect(unhandled.reasons).toEqual([])
+
+      mockRect.mockRestore()
+    })
+
+    it('should not run the deferred drag end when unmounted right after mouseup', async () => {
+      vi.useRealTimers()
+      const value = ref(0)
+      const wrapper = mount(
+        () => (
+          <div style="width: 200px;">
+            <Slider v-model={value.value} />
+          </div>
+        ),
+        {
+          attachTo: document.body,
+        }
+      )
+
+      const slider = wrapper.findComponent({ name: 'ElSliderButton' })
+      const mockRect = mockBoundingClientRect(
+        wrapper.find('.el-slider__runway').element,
+        { width: 200, left: 0 }
+      )
+
+      const unhandled = observeUnhandledRejections()
+
+      await slider.trigger('mousedown', { clientX: 0 })
+      window.dispatchEvent(new MouseEvent('mousemove', { clientX: 100 }))
+      await nextTick()
+      window.dispatchEvent(new MouseEvent('mouseup'))
+      // unmount before the deferred `onDragEnd` callback fires
+      wrapper.unmount()
+      await new Promise((resolve) => setTimeout(resolve, 10))
+
+      unhandled.release()
+      expect(unhandled.reasons).toEqual([])
+
+      mockRect.mockRestore()
+    })
+
+    it('should correctly handle uneven step sizes', async () => {
+      vi.useRealTimers()
+      const value = ref(0)
+      const wrapper = mount(
+        () => (
+          <div style="width: 100px;">
+            <Slider
+              v-model={value.value}
+              min={0}
+              max={10}
+              step={3}
+              vertical={false}
+            />
+          </div>
+        ),
+        {
+          attachTo: document.body,
+        }
+      )
+
+      const slider = wrapper.findComponent({ name: 'ElSliderButton' })
+      const mockRect = mockBoundingClientRect(
+        wrapper.find('.el-slider__runway').element,
+        { width: 100 }
+      )
+      const mockMouseEvent = async (start: number, end: number) => {
+        slider.trigger('mousedown', { clientX: start })
+
+        const mousemove = new MouseEvent('mousemove', {
+          screenX: end,
+          screenY: 0,
+          clientX: end,
+          clientY: 0,
+        })
+        window.dispatchEvent(mousemove)
+        await nextTick()
+
+        const mouseup = new MouseEvent('mouseup', {
+          screenX: end,
+          screenY: 0,
+          clientX: end,
+          clientY: 0,
+        })
+        window.dispatchEvent(mouseup)
+        await nextTick()
+      }
+
+      await mockMouseEvent(0, 14)
+      expect(value.value).toBe(0)
+      await mockMouseEvent(0, 15)
+      expect(value.value).toBe(3)
+      await mockMouseEvent(30, 45)
+      expect(value.value).toBe(6)
+      await mockMouseEvent(60, 75)
+      expect(value.value).toBe(9)
+      await mockMouseEvent(90, 94)
+      expect(value.value).toBe(9)
+      await mockMouseEvent(90, 95)
+      expect(value.value).toBe(10)
+      mockRect.mockRestore()
     })
   })
 
@@ -265,6 +526,34 @@ describe('Slider', () => {
       await nextTick()
       expect(value.value).toBe(10)
     })
+
+    it('should have appropriate ARIA attributes', async () => {
+      const value = ref(30)
+      const disabled = ref(false)
+      const wrapper = mount(() => (
+        <Slider
+          v-model={value.value}
+          min={0}
+          max={100}
+          step={10}
+          disabled={disabled.value}
+        />
+      ))
+
+      const sliderButton = wrapper.findComponent({ name: 'ElSliderButton' })
+      expect(sliderButton.attributes('tabindex')).toBe('0')
+      expect(sliderButton.attributes('role')).toBe('slider')
+      expect(sliderButton.attributes('aria-valuemin')).toBe('0')
+      expect(sliderButton.attributes('aria-valuemax')).toBe('100')
+      expect(sliderButton.attributes('aria-valuenow')).toBe('30')
+      expect(sliderButton.attributes('aria-valuetext')).toBe('30')
+      expect(sliderButton.attributes('aria-orientation')).toBe('horizontal')
+      expect(sliderButton.attributes('aria-disabled')).toBe('false')
+
+      await (disabled.value = true)
+      expect(sliderButton.attributes('tabindex')).toBeUndefined()
+      expect(sliderButton.attributes('aria-disabled')).toBe('true')
+    })
   })
 
   it('step', async () => {
@@ -281,9 +570,10 @@ describe('Slider', () => {
       }
     )
 
-    const mockClientWidth = vi
-      .spyOn(wrapper.find('.el-slider__runway').element, 'clientWidth', 'get')
-      .mockImplementation(() => 200)
+    const mockRect = mockBoundingClientRect(
+      wrapper.find('.el-slider__runway').element,
+      { width: 200 }
+    )
     const slider = wrapper.findComponent({ name: 'ElSliderButton' })
     await nextTick()
 
@@ -307,7 +597,204 @@ describe('Slider', () => {
     window.dispatchEvent(mouseup)
     await nextTick()
     expect(value.value === 0.5).toBeTruthy()
-    mockClientWidth.mockRestore()
+    mockRect.mockRestore()
+  })
+
+  it('should restrict value when step is mark', async () => {
+    const value = ref(0)
+    const wrapper = mount(
+      () => (
+        <div style="width: 200px;">
+          <Slider
+            v-model={value.value}
+            min={0}
+            max={100}
+            marks={{
+              0: '0',
+              10: '10',
+              30: '30',
+              50: '50',
+            }}
+            step="mark"
+          />
+        </div>
+      ),
+      {
+        attachTo: document.body,
+      }
+    )
+
+    const slider = wrapper.findComponent({ name: 'ElSliderButton' })
+    const mockRect = mockBoundingClientRect(
+      wrapper.find('.el-slider__runway').element,
+      { width: 200, left: 0 }
+    )
+
+    await nextTick()
+
+    // Mouse down at 0
+    await slider.trigger('mousedown', { clientX: 0, clientY: 0 })
+
+    // Mouse move to 50px (value 25)
+    // 25 is closer to 30 (diff 5) than 10 (diff 15)
+    const mousemove = new MouseEvent('mousemove', {
+      clientX: 50,
+      clientY: 0,
+      bubbles: true,
+    })
+    window.dispatchEvent(mousemove)
+
+    const mouseup = new MouseEvent('mouseup', {
+      bubbles: true,
+    })
+    window.dispatchEvent(mouseup)
+
+    await nextTick()
+    expect(value.value).toBe(30)
+
+    // Keyboard navigation
+    await slider.trigger('keydown', {
+      key: EVENT_CODE.right,
+      code: EVENT_CODE.right,
+    })
+    await nextTick()
+    expect(value.value).toBe(50)
+
+    await slider.trigger('keydown', {
+      key: EVENT_CODE.left,
+      code: EVENT_CODE.left,
+    })
+    await nextTick()
+    expect(value.value).toBe(30)
+
+    await slider.trigger('keydown', {
+      key: EVENT_CODE.pageUp,
+      code: EVENT_CODE.pageUp,
+    })
+    await nextTick()
+    expect(value.value).toBe(50)
+
+    await slider.trigger('keydown', {
+      key: EVENT_CODE.pageDown,
+      code: EVENT_CODE.pageDown,
+    })
+    await nextTick()
+    expect(value.value).toBe(0)
+
+    await slider.trigger('keydown', {
+      key: EVENT_CODE.home,
+      code: EVENT_CODE.home,
+    })
+    await nextTick()
+    expect(value.value).toBe(0)
+
+    await slider.trigger('keydown', {
+      key: EVENT_CODE.end,
+      code: EVENT_CODE.end,
+    })
+    await nextTick()
+    expect(value.value).toBe(50)
+
+    mockRect.mockRestore()
+  })
+
+  it('should restrict value when step is mark with range', async () => {
+    const value = ref([10, 50])
+    const wrapper = mount(
+      () => (
+        <div style="width: 200px;">
+          <Slider
+            v-model={value.value}
+            min={0}
+            max={100}
+            marks={{
+              0: '0',
+              13: '13',
+              42: '42',
+              58: '58',
+              89: '89',
+              100: '100',
+            }}
+            step="mark"
+            range
+          />
+        </div>
+      ),
+      {
+        attachTo: document.body,
+      }
+    )
+
+    const buttons = wrapper.findAllComponents({ name: 'ElSliderButton' })
+    const firstButton = buttons[0]
+    const secondButton = buttons[1]
+
+    const mockRect = mockBoundingClientRect(
+      wrapper.find('.el-slider__runway').element,
+      { width: 200, left: 0 }
+    )
+
+    await nextTick()
+
+    // Move first button from 10 (20px) to near 13 (26px)
+    await firstButton.trigger('mousedown', { clientX: 20, clientY: 0 })
+
+    const mousemove1 = new MouseEvent('mousemove', {
+      clientX: 25, // 12.5 -> closest mark 13
+      clientY: 0,
+      bubbles: true,
+    })
+    window.dispatchEvent(mousemove1)
+
+    const mouseup1 = new MouseEvent('mouseup', { bubbles: true })
+    window.dispatchEvent(mouseup1)
+
+    await nextTick()
+    expect(value.value[0]).toBe(13)
+    expect(value.value[1]).toBe(50)
+
+    // Move second button from 50 (100px) to near 58 (116px)
+    await secondButton.trigger('mousedown', { clientX: 100, clientY: 0 })
+
+    const mousemove2 = new MouseEvent('mousemove', {
+      clientX: 110, // 55 -> closest mark 58
+      clientY: 0,
+      bubbles: true,
+    })
+    window.dispatchEvent(mousemove2)
+
+    const mouseup2 = new MouseEvent('mouseup', { bubbles: true })
+    window.dispatchEvent(mouseup2)
+
+    await nextTick()
+    expect(value.value[0]).toBe(13)
+    expect(value.value[1]).toBe(58)
+
+    mockRect.mockRestore()
+  })
+
+  it('should keep mark precision when step is mark', async () => {
+    const value = ref(3.14159)
+    const wrapper = mount(() => (
+      <div style="width: 200px;">
+        <Slider
+          v-model={value.value}
+          min={0}
+          max={5}
+          marks={{ 2.71828: 'e', 3.14159: 'π' }}
+          step="mark"
+        />
+      </div>
+    ))
+
+    const slider = wrapper.findComponent({ name: 'ElSliderButton' })
+
+    await slider.trigger('keydown', {
+      key: EVENT_CODE.left,
+      code: EVENT_CODE.left,
+    })
+    await nextTick()
+    expect(value.value).toBe(2.71828)
   })
 
   it('click', async () => {
@@ -315,14 +802,15 @@ describe('Slider', () => {
     const value = ref(0)
     const wrapper = mount(() => <Slider v-model={value.value} />)
 
-    const mockClientWidth = vi
-      .spyOn(wrapper.find('.el-slider__runway').element, 'clientWidth', 'get')
-      .mockImplementation(() => 200)
+    const mockRect = mockBoundingClientRect(
+      wrapper.find('.el-slider__runway').element,
+      { width: 200 }
+    )
     const slider = wrapper.findComponent({ name: 'ElSlider' })
     slider.vm.onSliderClick(new MouseEvent('mousedown', { clientX: 100 }))
     await nextTick()
     expect(value.value > 0).toBeTruthy()
-    mockClientWidth.mockRestore()
+    mockRect.mockRestore()
   })
 
   it('change event', async () => {
@@ -337,25 +825,15 @@ describe('Slider', () => {
     ))
 
     const slider = wrapper.findComponent({ name: 'ElSlider' })
-    const mockRectLeft = vi
-      .spyOn(
-        wrapper.find('.el-slider__runway').element,
-        'getBoundingClientRect'
-      )
-      .mockImplementation(() => {
-        return {
-          left: 0,
-        } as DOMRect
-      })
-    const mockClientWidth = vi
-      .spyOn(wrapper.find('.el-slider__runway').element, 'clientWidth', 'get')
-      .mockImplementation(() => 200)
+    const mockRect = mockBoundingClientRect(
+      wrapper.find('.el-slider__runway').element,
+      { width: 200, left: 0 }
+    )
     expect(data.value).toBe(0)
     slider.vm.onSliderClick(new MouseEvent('mousedown', { clientX: 100 }))
     await nextTick()
     expect(data.value === 50).toBeTruthy()
-    mockRectLeft.mockRestore()
-    mockClientWidth.mockRestore()
+    mockRect.mockRestore()
   })
 
   it('input event', async () => {
@@ -370,26 +848,16 @@ describe('Slider', () => {
     ))
 
     const slider = wrapper.findComponent({ name: 'ElSlider' })
-    const mockRectLeft = vi
-      .spyOn(
-        wrapper.find('.el-slider__runway').element,
-        'getBoundingClientRect'
-      )
-      .mockImplementation(() => {
-        return {
-          left: 0,
-        } as DOMRect
-      })
-    const mockClientWidth = vi
-      .spyOn(wrapper.find('.el-slider__runway').element, 'clientWidth', 'get')
-      .mockImplementation(() => 200)
+    const mockRect = mockBoundingClientRect(
+      wrapper.find('.el-slider__runway').element,
+      { width: 200, left: 0 }
+    )
     await nextTick()
     expect(data.value).toBe(0)
     slider.vm.onSliderClick(new MouseEvent('mousedown', { clientX: 100 }))
     await nextTick()
     expect(data.value === 50).toBeTruthy()
-    mockRectLeft.mockRestore()
-    mockClientWidth.mockRestore()
+    mockRect.mockRestore()
   })
 
   it('disabled', async () => {
@@ -475,25 +943,15 @@ describe('Slider', () => {
       }
     )
 
-    const mockRectBottom = vi
-      .spyOn(
-        wrapper.find('.el-slider__runway').element,
-        'getBoundingClientRect'
-      )
-      .mockImplementation(() => {
-        return {
-          bottom: 200,
-        } as DOMRect
-      })
-    const mockClientHeight = vi
-      .spyOn(wrapper.find('.el-slider__runway').element, 'clientHeight', 'get')
-      .mockImplementation(() => 200)
+    const mockRect = mockBoundingClientRect(
+      wrapper.find('.el-slider__runway').element,
+      { height: 200, bottom: 200 }
+    )
     const slider = wrapper.getComponent({ name: 'ElSlider' })
     slider.vm.onSliderClick(new MouseEvent('mousedown', { clientX: 100 }))
     await nextTick()
     expect(value.value > 0).toBeTruthy()
-    mockRectBottom.mockRestore()
-    mockClientHeight.mockRestore()
+    mockRect.mockRestore()
   })
 
   it('rerender with min and show-input', async () => {
@@ -554,19 +1012,10 @@ describe('Slider', () => {
         }
       )
 
-      const mockRectLeft = vi
-        .spyOn(
-          wrapper.find('.el-slider__runway').element,
-          'getBoundingClientRect'
-        )
-        .mockImplementation(() => {
-          return {
-            left: 0,
-          } as DOMRect
-        })
-      const mockClientWidth = vi
-        .spyOn(wrapper.find('.el-slider__runway').element, 'clientWidth', 'get')
-        .mockImplementation(() => 200)
+      const mockRect = mockBoundingClientRect(
+        wrapper.find('.el-slider__runway').element,
+        { width: 200, left: 0 }
+      )
       const slider = wrapper.getComponent({ name: 'ElSlider' })
       slider.vm.onSliderClick(new MouseEvent('mousedown', { clientX: 100 }))
       await nextTick()
@@ -574,8 +1023,7 @@ describe('Slider', () => {
       // The behavior of the setPosition method in the useSlider.ts file should be that the value of the second button is 50
       expect(value.value[0] === 0).toBeTruthy()
       expect(value.value[1] === 50).toBeTruthy()
-      mockRectLeft.mockRestore()
-      mockClientWidth.mockRestore()
+      mockRect.mockRestore()
     })
 
     it('responsive to dynamic min and max', async () => {
@@ -718,6 +1166,18 @@ describe('Slider', () => {
       await nextTick()
       const formItem = wrapper.find('[data-test-ref="item"]')
       expect(formItem.attributes().role).toBe('group')
+    })
+
+    it('The disabled state of a component has higher priority than that of a form', async () => {
+      const wrapper = mount(() => (
+        <ElForm disabled>
+          <Slider disabled={false} />
+        </ElForm>
+      ))
+
+      await nextTick()
+      const slider = wrapper.find('.el-slider__runway')
+      expect(slider.classes()).not.toContain('is-disabled')
     })
   })
 })

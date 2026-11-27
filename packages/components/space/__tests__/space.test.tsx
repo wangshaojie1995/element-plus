@@ -1,4 +1,5 @@
-import { nextTick } from 'vue'
+import { createSSRApp, h, nextTick, ref } from 'vue'
+import { renderToString } from '@vue/server-renderer'
 import { mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 import Space from '../src/space'
@@ -96,6 +97,25 @@ describe('Space.vue', () => {
     expect(wrapper.element.children).toHaveLength(3)
   })
 
+  it('should render every component vnode spacer after hydration', async () => {
+    const showSpace = ref(false)
+    const spacer = h(() => h('i', { class: 'test-spacer' }))
+    const App = () =>
+      showSpace.value
+        ? h(Space, { spacer }, () => [1, 2, 3].map((item) => h('div', item)))
+        : null
+    const container = document.createElement('div')
+    container.innerHTML = await renderToString(h(App))
+    const app = createSSRApp(App)
+
+    app.mount(container)
+    showSpace.value = true
+    await nextTick()
+
+    expect(container.querySelectorAll('.test-spacer')).toHaveLength(2)
+    app.unmount()
+  })
+
   it('fill', async () => {
     const wrapper = mount(
       <Space fill>
@@ -125,5 +145,35 @@ describe('Space.vue', () => {
     expect(wrapper.find('.el-space__item').attributes('style')).toContain(
       'min-width: 50%'
     )
+  })
+
+  it('should handle empty conditional templates correctly', async () => {
+    // Test with a component that uses v-if to simulate empty templates
+    const TestComponent = {
+      template: `
+        <el-space spacer="|">
+          <span>Item 1</span>
+          <template v-if="false"></template>
+          <span>Item 2</span>
+          <template v-if="false"></template>
+        </el-space>
+      `,
+      components: {
+        'el-space': Space,
+      },
+    }
+
+    const wrapper = mount(TestComponent)
+    await nextTick()
+
+    expect(wrapper.text()).toBe('Item 1|Item 2')
+
+    const spacerElements = wrapper
+      .findAll('span')
+      .filter((el) => el.text() === '|')
+    expect(spacerElements.length).toBe(1)
+
+    const spaceChildren = wrapper.find('.el-space').element.children
+    expect(spaceChildren.length).toBe(3)
   })
 })

@@ -11,6 +11,13 @@ export default {
       description:
         'رنگ فعلی {color} است. برای انتخاب رنگ جدید، اینتر را فشار دهید.',
       alphaLabel: 'مقدار آلفا را انتخاب کنید',
+      alphaDescription: 'alpha {alpha}, current color is {color}', // to be translated
+      hueLabel: 'pick hue value', // to be translated
+      hueDescription: 'hue {hue}, current color is {color}', // to be translated
+      svLabel: 'pick saturation and brightness value', // to be translated
+      svDescription:
+        'saturation {saturation}, brightness {brightness}, current color is {color}', // to be translated
+      predefineDescription: 'select {value} as the color', // to be translated
     },
     datepicker: {
       now: 'اکنون',
@@ -22,6 +29,8 @@ export default {
         'از کلیدهای جهت‌دار و اینتر برای انتخاب روز ماه استفاده کنید',
       monthTablePrompt:
         'از کلیدهای جهت‌دار و اینتر برای انتخاب ماه استفاده کنید',
+      quarterTablePrompt:
+        'از کلیدهای جهت‌دار و اینتر برای انتخاب سه‌ماهه استفاده کنید',
       yearTablePrompt:
         'از کلیدهای جهت‌دار و اینتر برای انتخاب سال استفاده کنید',
       selectedDate: 'تاریخ انتخاب‌شده',
@@ -48,7 +57,6 @@ export default {
       month10: 'اکتبر',
       month11: 'نوامبر',
       month12: 'دسامبر',
-      week: 'هفته',
       weeks: {
         sun: 'یک‌شنبه',
         mon: 'دوشنبه',
@@ -81,6 +89,9 @@ export default {
         nov: 'نوامبر',
         dec: 'دسامبر',
       },
+    },
+    input: {
+      characters: '{count} / {max} کاراکتر',
     },
     inputNumber: {
       decrease: 'کاهش عدد',
@@ -148,11 +159,21 @@ export default {
       resetFilter: 'بازنشانی',
       clearFilter: 'همه',
       sumText: 'مجموع',
+      selectAllLabel: 'Select all rows', // to be translated
+      selectRowLabel: 'Select this row', // to be translated
+      expandRowLabel: 'Expand this row', // to be translated
+      collapseRowLabel: 'Collapse this row', // to be translated
+      sortLabel: 'Sort by {column}', // to be translated
+      filterLabel: 'Filter by {column}', // to be translated
+    },
+    tag: {
+      close: 'Close this tag', // to be translated
     },
     tour: {
       next: 'بعدی',
       previous: 'قبلی',
       finish: 'پایان',
+      close: 'Close this dialog', // to be translated
     },
     tree: {
       emptyText: 'داده‌ای موجود نیست',
@@ -179,6 +200,10 @@ export default {
       leftArrow: 'پیکان به جهت چپ',
       rightArrow: 'پیکان چرخان به جهت راست',
       indicator: 'سوئیچ چرخان به شاخص {index}',
+    },
+    inputOTP: {
+      groupLabel: 'OTP Input', // to be translated
+      defaultLabel: 'Please enter OTP character {index}', // to be translated
     },
   },
 }

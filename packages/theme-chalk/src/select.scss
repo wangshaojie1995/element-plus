@@ -36,8 +36,10 @@
     line-height: map.get($select-item-height, 'default');
     border-radius: getCssVar('border-radius-base');
     background-color: getCssVar('fill-color', 'blank');
-    transition: getCssVar('transition', 'duration');
-    transform: translate3d(0, 0, 0);
+    transition: getCssVar('transition-box-shadow');
+
+    // Keep the 3D transform to avoid Chromium inset box-shadow noise.
+    transform: translateZ(0);
     @include mixed-input-border(#{getCssVar('border-color')});
 
     @include when(filterable) {
@@ -56,7 +58,6 @@
 
     @include when(disabled) {
       cursor: not-allowed;
-      pointer-events: none;
 
       background-color: getCssVar('fill-color', 'light');
       color: getCssVar('text-color', 'placeholder');
@@ -80,6 +81,16 @@
 
       .#{$namespace}-tag {
         cursor: not-allowed;
+      }
+
+      // When the native input tag is disabled, the cursor value is the 'default'.
+      input {
+        cursor: not-allowed;
+      }
+
+      .#{$namespace}-select__prefix,
+      .#{$namespace}-select__suffix {
+        pointer-events: none;
       }
     }
   }
@@ -118,6 +129,14 @@
     }
   }
 
+  @include e(clear) {
+    cursor: pointer;
+
+    &:hover {
+      color: getCssVar('select-close-hover-color');
+    }
+  }
+
   @include e(selection) {
     position: relative;
     display: flex;
@@ -149,6 +168,15 @@
     display: flex;
     flex-wrap: wrap;
     user-select: none;
+
+    > .#{$namespace}-tag {
+      max-width: 100%;
+    }
+  }
+
+  @include e(collapse-item) {
+    flex-shrink: 0;
+    max-width: 100%;
   }
 
   @include e(tags-text) {
@@ -206,10 +234,6 @@
     height: map.get($select-item-height, 'default');
     width: 100%;
     background-color: transparent;
-
-    @include when(disabled) {
-      cursor: not-allowed;
-    }
   }
 
   @include e(input-calculator) {

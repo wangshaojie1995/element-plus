@@ -12,22 +12,47 @@ import {
   isNumber,
 } from '@element-plus/utils'
 import { CHANGE_EVENT, UPDATE_MODEL_EVENT } from '@element-plus/constants'
+import { scrollbarEmits } from '@element-plus/components/scrollbar'
 import { useTooltipContentProps } from '@element-plus/components/tooltip'
-import { CircleClose } from '@element-plus/icons-vue'
+import { ArrowDown, CircleClose } from '@element-plus/icons-vue'
 import { tagProps } from '../../tag'
 import { defaultProps } from './useProps'
 
+import type SelectV2 from './select.vue'
 import type { Option, OptionType } from './select.types'
 import type { Props } from './useProps'
 import type { EmitFn } from '@element-plus/utils/vue/typescript'
-import type { ExtractPropTypes } from 'vue'
+import type {
+  CSSProperties,
+  ExtractPropTypes,
+  ExtractPublicPropTypes,
+} from 'vue'
 import type {
   Options,
   Placement,
   PopperEffect,
 } from '@element-plus/components/popper'
 
-export const SelectProps = buildProps({
+/**
+ * @description Tag tooltip configuration interface
+ */
+export interface TagTooltipProps {
+  appendTo?: string | HTMLElement
+  placement?: Placement
+  fallbackPlacements?: Placement[]
+  effect?: PopperEffect
+  popperClass?: string
+  popperStyle?: string | CSSProperties
+  transition?: string
+  teleported?: boolean
+  popperOptions?: Partial<Options>
+  showAfter?: number
+  hideAfter?: number
+  autoClose?: number
+  offset?: number
+}
+
+export const selectV2Props = buildProps({
   /**
    * @description whether creating new items is allowed. To use this, `filterable` must be true
    */
@@ -70,6 +95,13 @@ export const SelectProps = buildProps({
    */
   collapseTagsTooltip: Boolean,
   /**
+   * @description configuration object for the collapse-tags tooltip. To use this, `collapse-tags` and `collapse-tags-tooltip` must be true
+   */
+  tagTooltip: {
+    type: definePropType<TagTooltipProps>(Object),
+    default: () => ({}),
+  },
+  /**
    * @description The max tags number to be shown. To use this, `collapse-tags` must be true
    */
   maxCollapseTags: {
@@ -83,22 +115,27 @@ export const SelectProps = buildProps({
   /**
    * @description is disabled
    */
-  disabled: Boolean,
+  disabled: {
+    type: Boolean,
+    default: undefined,
+  },
   /**
-   * @description
+   * @description Estimated item height for variable option sizes. Defaults to fixed `itemHeight` when omitted.
    */
   estimatedOptionHeight: {
     type: Number,
     default: undefined,
   },
   /**
-   * @description is filterable
+   * @description whether Select is filterable
    */
   filterable: Boolean,
   /**
-   * @description
+   * @description custom filter method, the first parameter is the current input value. To use this, `filterable` must be true
    */
-  filterMethod: Function,
+  filterMethod: {
+    type: definePropType<(query: string) => void>(Function),
+  },
   /**
    * @description The height of the dropdown panel, 34px for each item
    */
@@ -114,7 +151,7 @@ export const SelectProps = buildProps({
     default: 34,
   },
   /**
-   * @description
+   * @description native input id
    */
   id: String,
   /**
@@ -132,6 +169,7 @@ export const SelectProps = buildProps({
     type: definePropType<
       any[] | string | number | boolean | Record<string, any> | any
     >([Array, String, Number, Boolean, Object]),
+    default: undefined,
   },
   /**
    * @description is multiple
@@ -159,7 +197,9 @@ export const SelectProps = buildProps({
   /**
    * @description function that gets called when the input value changes. Its parameter is the current input value. To use this, `filterable` must be true
    */
-  remoteMethod: Function,
+  remoteMethod: {
+    type: definePropType<(query: string) => void>(Function),
+  },
   /**
    * @description whether reserve the keyword after select filtered option.
    */
@@ -194,21 +234,29 @@ export const SelectProps = buildProps({
   /**
    * @description custom class name for Select's dropdown
    */
-  popperClass: {
-    type: String,
-    default: '',
-  },
+  popperClass: useTooltipContentProps.popperClass,
+  /**
+   * @description custom style for Select's dropdown
+   */
+  popperStyle: useTooltipContentProps.popperStyle,
   /**
    * @description [popper.js](https://popper.js.org/docs/v2/) parameters
    */
   popperOptions: {
     type: definePropType<Partial<Options>>(Object),
-    default: () => ({} as Partial<Options>),
+    default: () => ({}) as Partial<Options>,
   },
   /**
    * @description whether search data from server
    */
   remote: Boolean,
+  /**
+   * @description debounce delay during remote search, in milliseconds
+   */
+  debounce: {
+    type: Number,
+    default: 300,
+  },
   /**
    * @description size of component
    */
@@ -245,6 +293,10 @@ export const SelectProps = buildProps({
     type: Number,
     default: 12,
   },
+  /**
+   * @description in remote search method show suffix icon
+   */
+  remoteShowSuffix: Boolean,
   /**
    * @description Determines whether the arrow is displayed
    */
@@ -285,7 +337,7 @@ export const SelectProps = buildProps({
   /**
    * @description which element the select dropdown appends to
    */
-  appendTo: String,
+  appendTo: useTooltipContentProps.appendTo,
   /**
    * @description if it is `true`, the width of the dropdown panel is the same as the input box.
    * if it is `false`, the width is automatically calculated based on the value of `label`,
@@ -298,11 +350,15 @@ export const SelectProps = buildProps({
       return isBoolean(val) || isNumber(val)
     },
   },
+  suffixIcon: {
+    type: iconPropType,
+    default: ArrowDown,
+  },
   ...useEmptyValuesProps,
   ...useAriaProps(['ariaLabel']),
 } as const)
 
-export const OptionProps = buildProps({
+export const optionV2Props = buildProps({
   data: Array,
   disabled: Boolean,
   hovering: Boolean,
@@ -317,22 +373,27 @@ export const OptionProps = buildProps({
 } as const)
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
-export const selectEmits = {
-  [UPDATE_MODEL_EVENT]: (val: ISelectV2Props['modelValue']) => true,
-  [CHANGE_EVENT]: (val: ISelectV2Props['modelValue']) => true,
+export const selectV2Emits = {
+  [UPDATE_MODEL_EVENT]: (val: SelectV2Props['modelValue']) => true,
+  [CHANGE_EVENT]: (val: SelectV2Props['modelValue']) => true,
+  'end-reached': scrollbarEmits['end-reached'],
   'remove-tag': (val: unknown) => true,
   'visible-change': (visible: boolean) => true,
   focus: (evt: FocusEvent) => evt instanceof FocusEvent,
   blur: (evt: FocusEvent) => evt instanceof FocusEvent,
   clear: () => true,
 }
-export const optionEmits = {
+export const optionV2Emits = {
   hover: (index?: number) => isNumber(index),
   select: (val: Option, index?: number) => true,
 }
 /* eslint-enable @typescript-eslint/no-unused-vars */
 
-export type ISelectV2Props = ExtractPropTypes<typeof SelectProps>
-export type IOptionV2Props = ExtractPropTypes<typeof OptionProps>
-export type SelectEmitFn = EmitFn<typeof selectEmits>
-export type OptionEmitFn = EmitFn<typeof optionEmits>
+export type SelectV2Props = ExtractPropTypes<typeof selectV2Props>
+export type SelectV2PropsPublic = ExtractPublicPropTypes<typeof selectV2Props>
+export type OptionV2Props = ExtractPropTypes<typeof optionV2Props>
+export type OptionV2PropsPublic = ExtractPublicPropTypes<typeof optionV2Props>
+export type SelectV2EmitFn = EmitFn<typeof selectV2Emits>
+export type OptionV2EmitFn = EmitFn<typeof optionV2Emits>
+
+export type SelectV2Instance = InstanceType<typeof SelectV2> & unknown

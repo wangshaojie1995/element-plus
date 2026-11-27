@@ -1,5 +1,4 @@
 import path from 'path'
-import os from 'os'
 import {
   arrayToRegExp,
   getTypeSymbol,
@@ -12,10 +11,10 @@ import {
   epOutput,
   epPackage,
   getPackageManifest,
+  normalizePath,
   projRoot,
 } from '@element-plus/build-utils'
 
-import type { TaskFunction } from 'gulp'
 import type {
   ReAttribute,
   ReComponentName,
@@ -189,7 +188,7 @@ const transformFunction = (str: string) => {
   return `(${params}) => ${returns}`
 }
 
-export const buildHelper: TaskFunction = (done) => {
+export const buildHelper = () => {
   const { name, version } = getPackageManifest(epPackage)
 
   const tagVer = process.env.TAG_VERSION
@@ -198,18 +197,15 @@ export const buildHelper: TaskFunction = (done) => {
       ? tagVer.slice(1)
       : tagVer
     : version!
-  let entry = `${path.resolve(
+  const entry = `${path.resolve(
     projRoot,
     'docs/en-US/component'
   )}/!(datetime-picker|message-box|message).md`
-  if (os.platform() === 'win32') {
-    entry = entry.replace(/\\/g, '/')
-  }
 
   main({
     name: name!,
     version: _version,
-    entry,
+    entry: normalizePath(entry),
     outDir: epOutput,
     reComponentName,
     reDocUrl,
@@ -221,6 +217,4 @@ export const buildHelper: TaskFunction = (done) => {
     tableRegExp:
       /#+\s+(.*\s*Attributes|.*\s*Events|.*\s*Slots|.*\s*Directives)\s*\n+(\|?.+\|.+)\n\|?\s*:?-+:?\s*\|.+((\n\|?.+\|.+)+)/g,
   })
-
-  done()
 }

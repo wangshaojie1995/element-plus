@@ -1,9 +1,18 @@
-import { getCurrentInstance, onMounted, ref, shallowRef, watch } from 'vue'
+import {
+  getCurrentInstance,
+  onMounted,
+  ref,
+  shallowRef,
+  unref,
+  watch,
+} from 'vue'
 import { useEventListener } from '@vueuse/core'
-import { isElement, isFunction } from '@element-plus/utils'
-import type { ShallowRef } from 'vue'
+import { isElement, isFocusable, isFunction } from '@element-plus/utils'
+
+import type { MaybeRef, ShallowRef } from 'vue'
 
 interface UseFocusControllerOptions {
+  disabled?: MaybeRef<boolean>
   /**
    * return true to cancel focus
    * @param event FocusEvent
@@ -21,6 +30,7 @@ interface UseFocusControllerOptions {
 export function useFocusController<T extends { focus: () => void }>(
   target: ShallowRef<T | undefined>,
   {
+    disabled,
     beforeFocus,
     afterFocus,
     beforeBlur,
@@ -34,7 +44,8 @@ export function useFocusController<T extends { focus: () => void }>(
 
   const handleFocus = (event: FocusEvent) => {
     const cancelFocus = isFunction(beforeFocus) ? beforeFocus(event) : false
-    if (cancelFocus || isFocused.value) return
+    if (unref(disabled) || isFocused.value || cancelFocus) return
+
     isFocused.value = true
     emit('focus', event)
     afterFocus?.()
@@ -42,10 +53,13 @@ export function useFocusController<T extends { focus: () => void }>(
 
   const handleBlur = (event: FocusEvent) => {
     const cancelBlur = isFunction(beforeBlur) ? beforeBlur(event) : false
+    // Not guarded by `disabled`: disabling a focused target makes the browser
+    // fire a native blur after `disabled` is already true, and that blur must
+    // still clear the focus state and be emitted.
     if (
-      cancelBlur ||
       (event.relatedTarget &&
-        wrapperRef.value?.contains(event.relatedTarget as Node))
+        wrapperRef.value?.contains(event.relatedTarget as Node)) ||
+      cancelBlur
     )
       return
 
@@ -54,18 +68,23 @@ export function useFocusController<T extends { focus: () => void }>(
     afterBlur?.()
   }
 
-  const handleClick = () => {
+  const handleClick = (event: Event) => {
     if (
-      wrapperRef.value?.contains(document.activeElement) &&
-      wrapperRef.value !== document.activeElement
+      unref(disabled) ||
+      isFocusable(event.target as HTMLElement) ||
+      (wrapperRef.value?.contains(document.activeElement) &&
+        wrapperRef.value !== document.activeElement)
     )
       return
 
     target.value?.focus()
   }
 
-  watch(wrapperRef, (el) => {
-    if (el) {
+  watch([wrapperRef, () => unref(disabled)], ([el, disabled]) => {
+    if (!el) return
+    if (disabled) {
+      el.removeAttribute('tabindex')
+    } else {
       el.setAttribute('tabindex', '-1')
     }
   })

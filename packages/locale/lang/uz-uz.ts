@@ -2,11 +2,22 @@ export default {
   name: 'uz-uz',
   el: {
     breadcrumb: {
-      label: 'Breadcrumb', // to be translated
+      label: 'Navigatsiya zanjiri',
     },
     colorpicker: {
       confirm: 'Qabul qilish',
       clear: 'Tozalash',
+      defaultLabel: 'rang tanlash',
+      description:
+        'joriy rang {color}. Yangi rang tanlash uchun Enter tugmasini bosing.',
+      alphaLabel: 'shaffoflik qiymatini tanlang',
+      alphaDescription: 'shaffoflik {alpha}, joriy rang {color}',
+      hueLabel: 'rang tusini tanlang',
+      hueDescription: 'tus {hue}, joriy rang {color}',
+      svLabel: 'toʻyinganlik va yorqinlik qiymatini tanlang',
+      svDescription:
+        'toʻyinganlik {saturation}, yorqinlik {brightness}, joriy rang {color}',
+      predefineDescription: '{value} rangini tanlash',
     },
     datepicker: {
       now: 'Hozir',
@@ -14,8 +25,17 @@ export default {
       cancel: 'Bekor qilish',
       clear: 'Tozalash',
       confirm: 'Qabul qilish',
-      selectDate: 'Kunni tanlash',
-      selectTime: 'Soatni tanlash',
+      dateTablePrompt:
+        'Oyning kunini tanlash uchun strelka tugmalari va Enter tugmasidan foydalaning',
+      monthTablePrompt:
+        'Oyni tanlash uchun strelka tugmalari va Enter tugmasidan foydalaning',
+      quarterTablePrompt:
+        'Chorakni tanlash uchun strelka tugmalari va Enter tugmasidan foydalaning',
+      yearTablePrompt:
+        'Yilni tanlash uchun strelka tugmalari va Enter tugmasidan foydalaning',
+      selectedDate: 'Tanlangan sana',
+      selectDate: 'Sanani tanlash',
+      selectTime: 'Vaqtni tanlash',
       startDate: 'Boshlanish sanasi',
       startTime: 'Boshlanish vaqti',
       endDate: 'Tugash sanasi',
@@ -37,7 +57,6 @@ export default {
       month10: 'Oktabr',
       month11: 'Noyabr',
       month12: 'Dekabr',
-      week: 'Hafta',
       weeks: {
         sun: 'Yak',
         mon: 'Dush',
@@ -46,6 +65,15 @@ export default {
         thu: 'Pay',
         fri: 'Jum',
         sat: 'Shan',
+      },
+      weeksFull: {
+        sun: 'Yakshanba',
+        mon: 'Dushanba',
+        tue: 'Seshanba',
+        wed: 'Chorshanba',
+        thu: 'Payshanba',
+        fri: 'Juma',
+        sat: 'Shanba',
       },
       months: {
         jan: 'Yan',
@@ -62,14 +90,24 @@ export default {
         dec: 'Dek',
       },
     },
+    input: {
+      characters: '{count} / {max} belgi',
+    },
+    inputNumber: {
+      decrease: 'sonni kamaytirish',
+      increase: 'sonni oshirish',
+    },
     select: {
       loading: 'Yuklanmoqda',
       noMatch: 'Mos maʼlumot yoʻq',
       noData: 'Maʼlumot yoʻq',
-      placeholder: 'Tanladizngiz',
+      placeholder: 'Tanlang',
     },
     mention: {
       loading: 'Yuklanmoqda',
+    },
+    dropdown: {
+      toggleDropdown: 'Ochiladigan roʻyxatni ochish yoki yopish',
     },
     cascader: {
       noMatch: 'Mos maʼlumot topilmadi',
@@ -82,31 +120,60 @@ export default {
       pagesize: '/sahifa',
       total: 'Barchasi {total} ta',
       pageClassifier: '',
-      page: 'Page', // to be translated
-      prev: 'Go to previous page', // to be translated
-      next: 'Go to next page', // to be translated
-      currentPage: 'page {pager}', // to be translated
-      prevPages: 'Previous {pager} pages', // to be translated
-      nextPages: 'Next {pager} pages', // to be translated
+      page: 'Sahifa',
+      prev: 'Oldingi sahifaga oʻtish',
+      next: 'Keyingi sahifaga oʻtish',
+      currentPage: '{pager}-sahifa',
+      prevPages: 'Oldingi {pager} ta sahifa',
+      nextPages: 'Keyingi {pager} ta sahifa',
+      deprecationWarning:
+        'Eskirgan foydalanish usullari aniqlandi, batafsil maʼlumot uchun el-pagination hujjatlariga qarang',
+    },
+    dialog: {
+      close: 'Bu oynani yopish',
+    },
+    drawer: {
+      close: 'Bu oynani yopish',
     },
     messagebox: {
       title: 'Xabar',
       confirm: 'Qabul qilish',
       cancel: 'Bekor qilish',
       error: 'Xatolik',
+      close: 'Bu oynani yopish',
     },
     upload: {
       deleteTip: 'Oʻchirish tugmasini bosib oʻchiring',
       delete: 'Oʻchirish',
-      preview: 'Oldin koʻrish',
-      continue: 'Davom qilish',
+      preview: 'Oldindan koʻrish',
+      continue: 'Davom etish',
+    },
+    slider: {
+      defaultLabel: '{min} va {max} oraligʻidagi slayder',
+      defaultRangeStartLabel: 'boshlangʻich qiymatni tanlang',
+      defaultRangeEndLabel: 'yakuniy qiymatni tanlang',
     },
     table: {
       emptyText: 'Boʻsh',
       confirmFilter: 'Qabul qilish',
       resetFilter: 'Oldingi holatga qaytarish',
-      clearFilter: 'Jami',
-      sumText: 'Summasi',
+      clearFilter: 'Barchasi',
+      sumText: 'Jami',
+      selectAllLabel: 'Barcha qatorlarni tanlash',
+      selectRowLabel: 'Bu qatorni tanlash',
+      expandRowLabel: 'Bu qatorni yoyish',
+      collapseRowLabel: 'Bu qatorni yigʻish',
+      sortLabel: '{column} boʻyicha saralash',
+      filterLabel: '{column} boʻyicha filtrlash',
+    },
+    tag: {
+      close: 'Bu tegni yopish',
+    },
+    tour: {
+      next: 'Keyingi',
+      previous: 'Oldingi',
+      finish: 'Tugatish',
+      close: 'Bu oynani yopish',
     },
     tree: {
       emptyText: 'Maʼlumot yoʻq',
@@ -126,13 +193,17 @@ export default {
       title: 'Orqaga',
     },
     popconfirm: {
-      confirmButtonText: 'Yes', // to be translated
-      cancelButtonText: 'No', // to be translated
+      confirmButtonText: 'Ha',
+      cancelButtonText: 'Yoʻq',
     },
     carousel: {
-      leftArrow: 'Carousel arrow left', // to be translated
-      rightArrow: 'Carousel arrow right', // to be translated
-      indicator: 'Carousel switch to index {index}', // to be translated
+      leftArrow: 'Karuselning chap strelkasi',
+      rightArrow: 'Karuselning oʻng strelkasi',
+      indicator: 'Karuselda {index}-slaydga oʻtish',
+    },
+    inputOTP: {
+      groupLabel: 'Bir martalik kod',
+      defaultLabel: 'Bir martalik kodning {index}-belgisini kiriting',
     },
   },
 }

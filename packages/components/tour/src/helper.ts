@@ -13,7 +13,7 @@ import {
   computePosition,
   detectOverflow,
   flip,
-  offset as offsetMiddelware,
+  offset as offsetMiddleware,
   shift,
 } from '@floating-ui/dom'
 import {
@@ -150,14 +150,13 @@ export interface TourContext {
   current: Ref<number>
   total: Ref<number>
   showClose: Ref<boolean>
-  closeIcon: Ref<string | Component>
+  closeIcon: Ref<string | Component | undefined>
   mergedType: Ref<'default' | 'primary' | undefined>
   ns: UseNamespaceReturn
   slots: SetupContext['slots']
   updateModelValue(modelValue: boolean): void
   onClose(): void
   onFinish(): void
-  onChange(): void
 }
 
 export const tourKey: InjectionKey<TourContext> = Symbol('ElTour')
@@ -194,7 +193,7 @@ export const useFloating = (
 
   const middleware = computed(() => {
     const _middleware: Middleware[] = [
-      offsetMiddelware(unref(offset)),
+      offsetMiddleware(unref(offset)),
       flip(),
       shift(),
       overflowMiddleware(),

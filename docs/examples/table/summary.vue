@@ -25,6 +25,7 @@
 
 <script lang="ts" setup>
 import { h } from 'vue'
+
 import type { VNode } from 'vue'
 import type { TableColumnCtx } from 'element-plus'
 
@@ -36,7 +37,7 @@ interface Product {
   amount3: number
 }
 
-interface SummaryMethodProps<T = Product> {
+interface SummaryMethodProps<T extends Product = Product> {
   columns: TableColumnCtx<T>[]
   data: T[]
 }

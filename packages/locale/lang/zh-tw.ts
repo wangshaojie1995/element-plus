@@ -10,6 +10,13 @@ export default {
       defaultLabel: '色彩選擇器',
       description: '目前色彩為 {color}。按一下 Enter 以選擇新色彩。',
       alphaLabel: '選擇透明度的值',
+      alphaDescription: 'alpha {alpha}, current color is {color}', // to be translated
+      hueLabel: 'pick hue value', // to be translated
+      hueDescription: 'hue {hue}, current color is {color}', // to be translated
+      svLabel: 'pick saturation and brightness value', // to be translated
+      svDescription:
+        'saturation {saturation}, brightness {brightness}, current color is {color}', // to be translated
+      predefineDescription: 'select {value} as the color', // to be translated
     },
     datepicker: {
       now: '現在',
@@ -19,6 +26,7 @@ export default {
       confirm: '確認',
       dateTablePrompt: '使用方向鍵與 Enter 鍵以選擇日期',
       monthTablePrompt: '使用方向鍵與 Enter 鍵以選擇月份',
+      quarterTablePrompt: '使用方向鍵與 Enter 鍵以選擇季度',
       yearTablePrompt: '使用方向鍵與 Enter 鍵以選擇年份',
       selectedDate: '已選日期',
       selectDate: '選擇日期',
@@ -44,7 +52,6 @@ export default {
       month10: '10 月',
       month11: '11 月',
       month12: '12 月',
-      // week: '周次',
       weeks: {
         sun: '日',
         mon: '一',
@@ -77,6 +84,9 @@ export default {
         nov: '十一月',
         dec: '十二月',
       },
+    },
+    input: {
+      characters: '{count} / {max} 個字元',
     },
     inputNumber: {
       decrease: '減少數值',
@@ -124,11 +134,11 @@ export default {
       title: '提示',
       confirm: '確定',
       cancel: '取消',
-      error: '輸入的資料不符規定!',
+      error: '輸入的資料不符合規定!',
       close: '關閉此對話框',
     },
     upload: {
-      deleteTip: '按一下 Delete 鍵以刪除',
+      deleteTip: '按 Delete 鍵以刪除',
       delete: '刪除',
       preview: '查看圖片',
       continue: '繼續上傳',
@@ -144,11 +154,21 @@ export default {
       resetFilter: '重置',
       clearFilter: '全部',
       sumText: '合計',
+      selectAllLabel: 'Select all rows', // to be translated
+      selectRowLabel: 'Select this row', // to be translated
+      expandRowLabel: 'Expand this row', // to be translated
+      collapseRowLabel: 'Collapse this row', // to be translated
+      sortLabel: 'Sort by {column}', // to be translated
+      filterLabel: 'Filter by {column}', // to be translated
+    },
+    tag: {
+      close: '關閉此標籤',
     },
     tour: {
       next: '下一步',
       previous: '上一步',
       finish: '結束導覽',
+      close: '關閉此對話框',
     },
     tree: {
       emptyText: '暫無資料',
@@ -175,6 +195,10 @@ export default {
       leftArrow: '上一張投影片',
       rightArrow: '下一張投影片',
       indicator: '投影片切換至索引 {index}',
+    },
+    inputOTP: {
+      groupLabel: '一次性密碼輸入框',
+      defaultLabel: '請輸入第 {index} 位 OTP 字元',
     },
   },
 }

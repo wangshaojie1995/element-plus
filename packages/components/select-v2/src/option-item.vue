@@ -1,6 +1,9 @@
 <template>
   <li
+    :id="`${contentId}-${index}`"
+    role="option"
     :aria-selected="selected"
+    :aria-disabled="disabled || undefined"
     :style="style"
     :class="[
       ns.be('dropdown', 'item'),
@@ -9,7 +12,8 @@
       ns.is('created', created),
       ns.is('hovering', hovering),
     ]"
-    @mousemove="hoverItem"
+    @[mouseMoveEventName]="hoverItem"
+    @mousedown="handleMousedown"
     @click.stop="selectOptionClick"
   >
     <slot :item="item" :index="index" :disabled="disabled">
@@ -23,21 +27,41 @@ import { defineComponent, inject } from 'vue'
 import { useNamespace } from '@element-plus/hooks'
 import { useOption } from './useOption'
 import { useProps } from './useProps'
-import { OptionProps, optionEmits } from './defaults'
+import { optionV2Emits, optionV2Props } from './defaults'
 import { selectV2InjectionKey } from './token'
+import { isFocusable, isIOS } from '@element-plus/utils'
 
 export default defineComponent({
-  props: OptionProps,
-  emits: optionEmits,
+  props: optionV2Props,
+  emits: optionV2Emits,
   setup(props, { emit }) {
     const select = inject(selectV2InjectionKey)!
     const ns = useNamespace('select')
+    const mouseMoveEventName = isIOS ? null : 'mousemove'
     const { hoverItem, selectOptionClick } = useOption(props, { emit })
     const { getLabel } = useProps(select.props)
+    const contentId = select.contentId
+
+    const handleMousedown = (event: MouseEvent) => {
+      let target = event.target as HTMLElement | null
+      const currentTarget = event.currentTarget as HTMLElement
+
+      while (target && target !== currentTarget) {
+        if (isFocusable(target)) {
+          return
+        }
+        target = target.parentElement
+      }
+
+      event.preventDefault()
+    }
 
     return {
       ns,
+      contentId,
+      mouseMoveEventName,
       hoverItem,
+      handleMousedown,
       selectOptionClick,
       getLabel,
     }

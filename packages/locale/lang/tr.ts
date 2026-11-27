@@ -2,11 +2,22 @@ export default {
   name: 'tr',
   el: {
     breadcrumb: {
-      label: 'Breadcrumb', // to be translated
+      label: 'Gezinti yolu',
     },
     colorpicker: {
       confirm: 'Onayla',
       clear: 'Temizle',
+      defaultLabel: 'renk seçici',
+      description:
+        'geçerli renk {color}. yeni bir renk seçmek için Enter tuşuna bas.',
+      alphaLabel: 'alfa değerini seç',
+      alphaDescription: 'alfa {alpha}, geçerli renk {color}',
+      hueLabel: 'ton değerini seç',
+      hueDescription: 'ton {hue}, geçerli renk {color}',
+      svLabel: 'doygunluk ve parlaklık değerini seç',
+      svDescription:
+        'doygunluk {saturation}, parlaklık {brightness}, geçerli renk {color}',
+      predefineDescription: 'renk olarak {value} değerini seç',
     },
     datepicker: {
       now: 'Şimdi',
@@ -14,6 +25,13 @@ export default {
       cancel: 'İptal',
       clear: 'Temizle',
       confirm: 'Onayla',
+      dateTablePrompt:
+        'Ayın gününü seçmek için ok tuşlarını ve Enter tuşunu kullan',
+      monthTablePrompt: 'Ayı seçmek için ok tuşlarını ve Enter tuşunu kullan',
+      quarterTablePrompt:
+        'Çeyreği seçmek için ok tuşlarını ve Enter tuşunu kullan',
+      yearTablePrompt: 'Yılı seçmek için ok tuşlarını ve Enter tuşunu kullan',
+      selectedDate: 'Seçili tarih',
       selectDate: 'Tarih seç',
       selectTime: 'Saat seç',
       startDate: 'Başlangıç Tarihi',
@@ -37,7 +55,6 @@ export default {
       month10: 'Ekim',
       month11: 'Kasım',
       month12: 'Aralık',
-      // week: 'week',
       weeks: {
         sun: 'Paz',
         mon: 'Pzt',
@@ -46,6 +63,15 @@ export default {
         thu: 'Per',
         fri: 'Cum',
         sat: 'Cmt',
+      },
+      weeksFull: {
+        sun: 'Pazar',
+        mon: 'Pazartesi',
+        tue: 'Salı',
+        wed: 'Çarşamba',
+        thu: 'Perşembe',
+        fri: 'Cuma',
+        sat: 'Cumartesi',
       },
       months: {
         jan: 'Oca',
@@ -62,6 +88,13 @@ export default {
         dec: 'Ara',
       },
     },
+    input: {
+      characters: '{count} / {max} karakter',
+    },
+    inputNumber: {
+      decrease: 'sayıyı azalt',
+      increase: 'sayıyı artır',
+    },
     select: {
       loading: 'Yükleniyor',
       noMatch: 'Eşleşen veri bulunamadı',
@@ -70,6 +103,9 @@ export default {
     },
     mention: {
       loading: 'Yükleniyor',
+    },
+    dropdown: {
+      toggleDropdown: 'Açılır menüyü aç/kapat',
     },
     cascader: {
       noMatch: 'Eşleşen veri bulunamadı',
@@ -82,18 +118,27 @@ export default {
       pagesize: '/sayfa',
       total: 'Toplam {total}',
       pageClassifier: '',
-      page: 'Page', // to be translated
-      prev: 'Go to previous page', // to be translated
-      next: 'Go to next page', // to be translated
-      currentPage: 'page {pager}', // to be translated
-      prevPages: 'Previous {pager} pages', // to be translated
-      nextPages: 'Next {pager} pages', // to be translated
+      page: 'Sayfa',
+      prev: 'Önceki sayfaya git',
+      next: 'Sonraki sayfaya git',
+      currentPage: 'sayfa {pager}',
+      prevPages: 'Önceki {pager} sayfa',
+      nextPages: 'Sonraki {pager} sayfa',
+      deprecationWarning:
+        'Kullanımdan kaldırılmış kullanım biçimleri algılandı, ayrıntılar için el-pagination belgelerine bak',
+    },
+    dialog: {
+      close: 'Bu iletişim kutusunu kapat',
+    },
+    drawer: {
+      close: 'Bu iletişim kutusunu kapat',
     },
     messagebox: {
       title: 'Mesaj',
       confirm: 'Onayla',
       cancel: 'İptal',
-      error: 'İllegal giriş',
+      error: 'Geçersiz giriş',
+      close: 'Bu iletişim kutusunu kapat',
     },
     upload: {
       deleteTip: 'kaldırmak için delete tuşuna bas',
@@ -101,12 +146,32 @@ export default {
       preview: 'Görüntüle',
       continue: 'Devam',
     },
+    slider: {
+      defaultLabel: '{min} ile {max} arasında kaydırıcı',
+      defaultRangeStartLabel: 'başlangıç değerini seç',
+      defaultRangeEndLabel: 'bitiş değerini seç',
+    },
     table: {
       emptyText: 'Veri yok',
       confirmFilter: 'Onayla',
       resetFilter: 'Sıfırla',
       clearFilter: 'Hepsi',
-      sumText: 'Sum',
+      sumText: 'Toplam',
+      selectAllLabel: 'Tüm satırları seç',
+      selectRowLabel: 'Bu satırı seç',
+      expandRowLabel: 'Bu satırı genişlet',
+      collapseRowLabel: 'Bu satırı daralt',
+      sortLabel: '{column} sütununa göre sırala',
+      filterLabel: '{column} sütununa göre filtrele',
+    },
+    tag: {
+      close: 'Bu etiketi kapat',
+    },
+    tour: {
+      next: 'Sonraki',
+      previous: 'Önceki',
+      finish: 'Bitir',
+      close: 'Bu iletişim kutusunu kapat',
     },
     tree: {
       emptyText: 'Veri yok',
@@ -130,9 +195,13 @@ export default {
       cancelButtonText: 'Hayır',
     },
     carousel: {
-      leftArrow: 'Carousel arrow left', // to be translated
-      rightArrow: 'Carousel arrow right', // to be translated
-      indicator: 'Carousel switch to index {index}', // to be translated
+      leftArrow: 'Karuselin sol oku',
+      rightArrow: 'Karuselin sağ oku',
+      indicator: 'Karuselde {index}. öğeye geç',
+    },
+    inputOTP: {
+      groupLabel: 'Tek kullanımlık şifre girişi',
+      defaultLabel: 'Tek kullanımlık şifrenin {index}. karakterini gir',
     },
   },
 }

@@ -43,14 +43,15 @@
 <script lang="ts" setup>
 import { nextTick } from 'vue'
 import { useNamespace } from '@element-plus/hooks'
-import { radioEmits, radioProps } from './radio'
+import { CHANGE_EVENT } from '@element-plus/constants'
+import { type RadioProps, radioEmits, radioPropsDefaults } from './radio'
 import { useRadio } from './use-radio'
 
 defineOptions({
   name: 'ElRadio',
 })
 
-const props = defineProps(radioProps)
+const props = withDefaults(defineProps<RadioProps>(), radioPropsDefaults)
 const emit = defineEmits(radioEmits)
 
 const ns = useNamespace('radio')
@@ -58,6 +59,6 @@ const { radioRef, radioGroup, focus, size, disabled, modelValue, actualValue } =
   useRadio(props, emit)
 
 function handleChange() {
-  nextTick(() => emit('change', modelValue.value))
+  nextTick(() => emit(CHANGE_EVENT, modelValue.value))
 }
 </script>
